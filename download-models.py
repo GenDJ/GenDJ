@@ -1,0 +1,3 @@
+from diffusion_processor import DiffusionProcessor
+
+DiffusionProcessor(local_files_only=False)

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSocket Video Stream</title>
+  <style>
+    body {
+      background-color: #181818;
+      color: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+    video {
+      background-color: #000000;
+      width: 100%;
+      max-width: 600px;
+    }
+    button, input {
+      width: 100%;
+      max-width: 300px;
+      padding: 10px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    button {
+      background-color: #007BFF;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    input {
+      background-color: #333333;
+      color: white;
+    }
+    canvas {
+      margin: 10px 0;
+      width: 100%;
+      max-width: 400px;
+    }
+    /* canvas#processedCanvas {
+      max-width: 512px;
+    }
+    canvas#croppedCanvas {
+      max-width: 160px;
+    } */
+    #fps, #queue {
+      margin: 10px 0;
+      font-size: 18px;
+    }
+    #fps {
+      margin-right: 20px;
+    }
+  </style>
+</head>
+<body>
+  <!-- <video id="localVideo" autoplay playsinline></video> -->
+  <button id="toggle">Start</button>
+  <div>
+    <span id="fps">Fps: 0</span>
+    <span id="queue">Queue Size: 0</span>
+  </div>
+  <input type="text" id="prompt" placeholder="Enter prompt..."></input>
+  <button id="send">Update prompt</button>
+
+  <canvas id="croppedCanvas" width="512" height="512"></canvas>
+  <canvas id="processedCanvas" width="512" height="512"></canvas>
+
+  <script src="main.js"></script>
+</body>
+</html>
