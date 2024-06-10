@@ -27,5 +27,6 @@ The [original realtime-i2i repo](https://github.com/kylemcdonald/i2i-realtime) I
 
 This project is stripped down to be only that solo way of running it, and only to accept frames from a webcam connected to a new web browser interface unique to this project.
 
+Some version of this may someday live at https://gendj.com
 
 [ORIGINAL README HERE](https://github.com/kylemcdonald/i2i-realtime)
