@@ -8,7 +8,7 @@ I actually thought I might remake this as a fork/PR to that repo, but as this dr
 
 As-is, this is a hacked together version of that, stripped down to only run on one machine and only work via a websockets connection from a new very minimal javascript/html frontend. So most of the changes were removing stuff, not adding stuff (with the exception of the websocket stuff and frontend).
 
-That said, after the next section describing the differences between the two projects is the readme from that project, which is in many ways WAY superior and written by someone who I would assume actually knows python (I haven't touched python in like 10 yrs so a lot of the unique pieces of GenDJ code were chatgpt).
+The original i2i-realtime is in many ways WAY superior and written by someone who I would assume actually knows python (I haven't touched python in like 10 yrs so a lot of the unique pieces of GenDJ code were chatgpt).
 
 ## Differences in how to run GenDJ vs the original realtime-i2i repo
 
