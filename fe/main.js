@@ -63,18 +63,26 @@ function sendFrames(stream, socket) {
   const videoTrack = stream.getVideoTracks()[0];
   const imageCapture = new ImageCapture(videoTrack);
   let frameCounter = 0;
+  let lastFrameTime = 0;
+  const frameDuration = 1000 / 24; // Duration of a frame in ms for 30 FPS
 
-  const sendFrame = async () => {
+  const sendFrame = async (currentTime) => {
+    if (currentTime - lastFrameTime < frameDuration) {
+      requestAnimationFrame(sendFrame);
+      return;
+    }
+
     try {
       const frame = await imageCapture.grabFrame();
 
-      const cropSize = 512;
+      const cropSize = Math.min(frame.width, frame.height);
       const cropX = Math.max(0, (frame.width - cropSize) / 2);
       const cropY = Math.max(0, (frame.height - cropSize) / 2);
 
       croppedCanvas.width = cropSize;
       croppedCanvas.height = cropSize;
 
+      croppedCtx.clearRect(0, 0, cropSize, cropSize);
       croppedCtx.drawImage(
         frame,
         cropX,
@@ -87,23 +95,25 @@ function sendFrames(stream, socket) {
         cropSize
       );
 
-      croppedCanvas.toBlob((blob) => {
-        if (
-          blob &&
-          isStreaming &&
-          socket.readyState === WebSocket.OPEN
-          // (frameCounter % 2 === 0 || frameCounter % 3 === 0)
-        ) {
-          blob.arrayBuffer().then((buffer) => {
-            socket.send(buffer);
-          });
-        }
-        frameCounter++;
-        requestAnimationFrame(sendFrame);
-      }, "image/jpeg");
+      croppedCanvas.toBlob(
+        (blob) => {
+          if (blob && isStreaming && socket.readyState === WebSocket.OPEN) {
+            blob.arrayBuffer().then((buffer) => {
+              socket.send(buffer);
+            });
+          }
+          lastFrameTime = currentTime;
+          requestAnimationFrame(sendFrame);
+          frameCounter++;
+        },
+        "image/jpeg", .8
+      );
     } catch (error) {
       console.error("Error capturing frame:", error);
     }
+
+
+
   };
 
   sendFrame();
@@ -116,8 +126,7 @@ function renderFrames() {
     const render = () => {
       const now = Date.now();
       const fps = calculateFPS();
-      const interval = fps > 0 ? 1000 / fps : 1000 / 30; // Default to 30 FPS if no frames received
-
+      const interval = fps > 0 ? 1000 / fps : 1000 / 24; // Default to 24 FPS if no frames received
       if (
         (frameQueue.length > 0 && now - lastRenderTime >= interval) ||
         frameQueue.length > 8 ||
