@@ -1,3 +1,5 @@
+Join the [discord](https://discord.gg/EtE9HFs2) to meet others interested in real-time AI
+
 # GenDJ
 A TON OF THIS CODE IS LIFTED FROM [https://github.com/kylemcdonald/i2i-realtime](https://github.com/kylemcdonald/i2i-realtime)
 THAT PIONEERING WORK DONE BY KYLE MCDONALD, DAITO MANABE, AND RHIZOMATIKS IS INCREDIBLE AND ALL OF YOU SHOULD GO READ THROUGH THE CODE BASE WHICH AT ITS TIME OF CREATION LIKE 6 MONTHS AGO WAS SO FAR AHEAD OF WHERE ME AND ALL OF YOU WERE AT IT'S BONKERS
