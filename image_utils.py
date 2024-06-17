@@ -18,7 +18,7 @@ def unpack_rgb444_image(buffer, image_shape):
     red = (img >> 20) & mask
     green = (img >> 10) & mask
     blue = (img) & mask
-    unpacked_image = np.stack((red, green, blue)).astype(np.float32) / 512.0
+    unpacked_image = np.stack((red, green, blue)).astype(np.float32) / 1024.0
     return unpacked_image
 
 

@@ -18,7 +18,12 @@ console.log("womp1212");
 
 async function startVideoStream() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 512 }, // Specify your desired width
+        height: { ideal: 512 }, // Specify your desired height
+      },
+    });
 
     const socket = new WebSocket("ws://localhost:8765");
 
@@ -31,7 +36,7 @@ async function startVideoStream() {
 
     console.log("doop1212");
     socket.onmessage = (event) => {
-      console.log("socketmessage1212", event);
+      // console.log("socketmessage1212", event);
       const blob = new Blob([event.data], { type: "image/jpeg" });
       const url = URL.createObjectURL(blob);
 
@@ -73,31 +78,67 @@ function sendFrames(stream, socket) {
     }
 
     try {
-      const frame = await imageCapture.grabFrame();
+      // uncomment this to switch to cropping the camera instead of scaling
+      // const frame = await imageCapture.grabFrame();
 
-      const cropSize = Math.min(frame.width, frame.height);
+      // const cropSize = 512;
+      // const cropX = Math.max(0, (frame.width - cropSize) / 2);
+      // const cropY = Math.max(0, (frame.height - cropSize) / 2);
+
+      // croppedCanvas.width = cropSize;
+      // croppedCanvas.height = cropSize;
+
+      // croppedCtx.clearRect(0, 0, cropSize, cropSize);
+      // croppedCtx.drawImage(
+      //   frame,
+      //   cropX,
+      //   cropY,
+      //   cropSize,
+      //   cropSize,
+      //   0,
+      //   0,
+      //   cropSize,
+      //   cropSize
+      // );
+
+      const frame = await imageCapture.grabFrame();
+      const cropSize = 512;
       const cropX = Math.max(0, (frame.width - cropSize) / 2);
       const cropY = Math.max(0, (frame.height - cropSize) / 2);
 
-      croppedCanvas.width = cropSize;
-      croppedCanvas.height = cropSize;
+      const targetWidth = 512;
+      const targetHeight = 512;
 
-      croppedCtx.clearRect(0, 0, cropSize, cropSize);
-      croppedCtx.drawImage(
-        frame,
-        cropX,
-        cropY,
-        cropSize,
-        cropSize,
-        0,
-        0,
-        cropSize,
-        cropSize
-      );
+      croppedCanvas.width = targetWidth;
+      croppedCanvas.height = targetHeight;
+
+      const scaleWidth = targetWidth / frame.width;
+      const scaleHeight = targetHeight / frame.height;
+      const scale = Math.min(scaleWidth, scaleHeight);
+
+      const scaledWidth = frame.width * scale;
+      const scaledHeight = frame.height * scale;
+
+      const dx = (targetWidth - scaledWidth) / 2;
+      const dy = (targetHeight - scaledHeight) / 2;
+
+      croppedCtx.clearRect(0, 0, targetWidth, targetHeight);
+      croppedCtx.drawImage(frame, dx, dy, scaledWidth, scaledHeight);
+
+      if (frameCounter === 1) {
+        console.log("f1212", frame.width, frame.height, cropSize, cropX, cropY);
+      }
 
       croppedCanvas.toBlob(
         (blob) => {
-          if (blob && isStreaming && socket.readyState === WebSocket.OPEN) {
+          if (
+            blob &&
+            isStreaming &&
+            socket.readyState === WebSocket.OPEN
+            // (frameCounter % 2 === 0 ||
+            //   frameCounter % 3 === 0 ||
+            //   frameCounter & (5 === 0))
+          ) {
             blob.arrayBuffer().then((buffer) => {
               socket.send(buffer);
             });
@@ -106,14 +147,12 @@ function sendFrames(stream, socket) {
           requestAnimationFrame(sendFrame);
           frameCounter++;
         },
-        "image/jpeg", .8
+        "image/jpeg",
+        0.8
       );
     } catch (error) {
       console.error("Error capturing frame:", error);
     }
-
-
-
   };
 
   sendFrame();
