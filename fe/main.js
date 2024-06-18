@@ -16,10 +16,37 @@ const frameTimestamps = [];
 let isRendering = false;
 console.log("womp1212");
 
-async function startVideoStream() {
+async function getVideoDevices() {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices.filter((device) => device.kind === "videoinput");
+}
+
+async function selectVideoDevice() {
+  const devices = await getVideoDevices();
+  const deviceList = document.getElementById("deviceList");
+  deviceList.innerHTML = "";
+
+  devices.forEach((device, index) => {
+    const option = document.createElement("option");
+    option.value = device.deviceId;
+    option.textContent = device.label || `Camera ${index + 1}`;
+    deviceList.appendChild(option);
+  });
+
+  const selectedDeviceId = await new Promise((resolve) => {
+    deviceList.addEventListener("change", () => {
+      resolve(deviceList.value);
+    });
+  });
+
+  return selectedDeviceId;
+}
+
+async function startVideoStream(deviceId) {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
+        deviceId: { exact: deviceId },
         width: { ideal: 512 }, // Specify your desired width
         height: { ideal: 512 }, // Specify your desired height
       },
@@ -134,10 +161,10 @@ function sendFrames(stream, socket) {
           if (
             blob &&
             isStreaming &&
-            socket.readyState === WebSocket.OPEN
-            // (frameCounter % 2 === 0 ||
-            //   frameCounter % 3 === 0 ||
-            //   frameCounter & (5 === 0))
+            socket.readyState === WebSocket.OPEN &&
+            (frameCounter % 2 === 0 ||
+              frameCounter % 3 === 0 ||
+              frameCounter & (5 === 0))
           ) {
             blob.arrayBuffer().then((buffer) => {
               socket.send(buffer);
@@ -224,4 +251,7 @@ document.getElementById("prompt").addEventListener("keydown", function (event) {
   }
 });
 
-startVideoStream();
+document.addEventListener("DOMContentLoaded", async () => {
+  const deviceId = await selectVideoDevice();
+  startVideoStream(deviceId);
+});
