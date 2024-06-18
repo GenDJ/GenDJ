@@ -2,7 +2,7 @@ const croppedCanvas = document.getElementById("croppedCanvas");
 const processedCanvas = document.getElementById("processedCanvas");
 const croppedCtx = croppedCanvas.getContext("2d");
 const processedCtx = processedCanvas.getContext("2d");
-
+let toClose;
 let isStreaming = false;
 const toggleButton = document.getElementById("toggle");
 
@@ -14,6 +14,10 @@ toggleButton.addEventListener("click", function () {
 const frameQueue = [];
 const frameTimestamps = [];
 let isRendering = false;
+let currentStream = null; // Track the current stream globally
+let socket = null; // Global socket variable
+let stopFrameCapture = false; // Flag to stop frame capture
+
 console.log("womp1212");
 
 async function getVideoDevices() {
@@ -33,10 +37,22 @@ async function selectVideoDevice() {
     deviceList.appendChild(option);
   });
 
-  const selectedDeviceId = await new Promise((resolve) => {
-    deviceList.addEventListener("change", () => {
-      resolve(deviceList.value);
-    });
+  let selectedDeviceId = devices.length > 0 ? devices[0].deviceId : null;
+
+  if (selectedDeviceId) {
+    console.log("Initial selected device ID:", selectedDeviceId);
+  }
+
+  deviceList.addEventListener("change", async () => {
+    selectedDeviceId = deviceList.value;
+    console.log("User selected device ID:", selectedDeviceId);
+    if (currentStream) {
+      stopCurrentStream(); // Stop the current stream
+    }
+    if (toClose) {
+      toClose();
+    }
+    await startVideoStream(selectedDeviceId); // Start a new stream with the selected device ID
   });
 
   return selectedDeviceId;
@@ -44,51 +60,64 @@ async function selectVideoDevice() {
 
 async function startVideoStream(deviceId) {
   try {
+    stopFrameCapture = true; // Stop any ongoing frame capture
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
         deviceId: { exact: deviceId },
-        width: { ideal: 512 }, // Specify your desired width
-        height: { ideal: 512 }, // Specify your desired height
+        width: { ideal: 512 },
+        height: { ideal: 512 },
       },
     });
 
-    const socket = new WebSocket("ws://localhost:8765");
+    stopFrameCapture = false; // Allow frame capture for the new stream
+    currentStream = stream; // Update the current stream
 
-    socket.binaryType = "arraybuffer";
+    if (!socket) {
+      socket = new WebSocket("ws://localhost:8765");
 
-    socket.onopen = () => {
-      console.log("WebSocket connection opened");
-      sendFrames(stream, socket);
-    };
+      socket.binaryType = "arraybuffer";
 
-    console.log("doop1212");
-    socket.onmessage = (event) => {
-      // console.log("socketmessage1212", event);
-      const blob = new Blob([event.data], { type: "image/jpeg" });
-      const url = URL.createObjectURL(blob);
-
-      const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        frameQueue.push(img);
-        frameTimestamps.push(Date.now());
-        calculateFPS();
+      socket.onopen = () => {
+        console.log("WebSocket connection opened");
       };
-      img.src = url;
-    };
 
-    socket.onclose = () => {
-      console.log("WebSocket connection closed");
-    };
+      socket.onmessage = (event) => {
+        const blob = new Blob([event.data], { type: "image/jpeg" });
+        const url = URL.createObjectURL(blob);
 
-    socket.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          frameQueue.push(img);
+          frameTimestamps.push(Date.now());
+          calculateFPS();
+        };
+        img.src = url;
+      };
 
+      socket.onclose = () => {
+        console.log("WebSocket connection closed");
+      };
+
+      socket.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
+    }
+
+    toClose = sendFrames(stream, socket);
     renderFrames();
   } catch (error) {
     console.error("Error accessing webcam:", error);
   }
+}
+
+function stopCurrentStream() {
+  stopFrameCapture = true; // Stop capturing frames
+  if (currentStream) {
+    currentStream.getTracks().forEach((track) => track.stop());
+    currentStream = null;
+  }
+  frameQueue.length = 0; // Clear the frame queue
 }
 
 function sendFrames(stream, socket) {
@@ -96,37 +125,20 @@ function sendFrames(stream, socket) {
   const imageCapture = new ImageCapture(videoTrack);
   let frameCounter = 0;
   let lastFrameTime = 0;
-  const frameDuration = 1000 / 24; // Duration of a frame in ms for 30 FPS
+  const frameDuration = 1000 / 24;
+  let open = true;
 
   const sendFrame = async (currentTime) => {
+    if (stopFrameCapture || !open) return; // Exit if frame capture is stopped
     if (currentTime - lastFrameTime < frameDuration) {
       requestAnimationFrame(sendFrame);
       return;
     }
 
     try {
-      // uncomment this to switch to cropping the camera instead of scaling
-      // const frame = await imageCapture.grabFrame();
-
-      // const cropSize = 512;
-      // const cropX = Math.max(0, (frame.width - cropSize) / 2);
-      // const cropY = Math.max(0, (frame.height - cropSize) / 2);
-
-      // croppedCanvas.width = cropSize;
-      // croppedCanvas.height = cropSize;
-
-      // croppedCtx.clearRect(0, 0, cropSize, cropSize);
-      // croppedCtx.drawImage(
-      //   frame,
-      //   cropX,
-      //   cropY,
-      //   cropSize,
-      //   cropSize,
-      //   0,
-      //   0,
-      //   cropSize,
-      //   cropSize
-      // );
+      if (videoTrack.readyState !== "live") {
+        throw new Error("Video track is not live");
+      }
 
       const frame = await imageCapture.grabFrame();
       const cropSize = 512;
@@ -169,7 +181,10 @@ function sendFrames(stream, socket) {
             });
           }
           lastFrameTime = currentTime;
-          requestAnimationFrame(sendFrame);
+          if (open) {
+            requestAnimationFrame(sendFrame);
+          }
+
           frameCounter++;
         },
         "image/jpeg",
@@ -181,6 +196,11 @@ function sendFrames(stream, socket) {
   };
 
   sendFrame();
+
+  return function closeIt() {
+    console.log("closing webcam");
+    open = false;
+  };
 }
 
 function renderFrames() {
@@ -190,7 +210,7 @@ function renderFrames() {
     const render = () => {
       const now = Date.now();
       const fps = calculateFPS();
-      const interval = fps > 0 ? 1000 / fps : 1000 / 24; // Default to 24 FPS if no frames received
+      const interval = fps > 0 ? 1000 / fps : 1000 / 24;
       if (
         (frameQueue.length > 0 && now - lastRenderTime >= interval) ||
         frameQueue.length > 8 ||
@@ -229,17 +249,15 @@ document.getElementById("send").addEventListener("click", function () {
 
 function calculateFPS() {
   const now = Date.now();
-  const cutoff = now - 1000; // 1 second ago
+  const cutoff = now - 1000;
   while (frameTimestamps.length > 0 && frameTimestamps[0] < cutoff) {
     frameTimestamps.shift();
   }
   const fps = frameTimestamps.length;
-  // console.log(`FPS: ${fps}`);
   document.getElementById("fps").innerText = `FPS: ${fps}`;
   document.getElementById(
     "queue"
   ).innerText = `Queue size: ${frameQueue.length}`;
-  // I arbitrarily added 1 because otherwise the queue kept growing
   return fps + 1;
 }
 
@@ -250,6 +268,26 @@ document.getElementById("prompt").addEventListener("keydown", function (event) {
 });
 
 document.addEventListener("DOMContentLoaded", async () => {
-  const deviceId = await selectVideoDevice();
-  startVideoStream(deviceId);
+  async function hasWebcamPermissions() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach((track) => track.stop());
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  if (await hasWebcamPermissions()) {
+    const deviceId = await selectVideoDevice();
+    await startVideoStream(deviceId);
+  } else {
+    try {
+      await navigator.mediaDevices.getUserMedia({ video: true });
+      const deviceId = await selectVideoDevice();
+      await startVideoStream(deviceId);
+    } catch (error) {
+      console.error("Webcam permissions are required to proceed.");
+    }
+  }
 });
