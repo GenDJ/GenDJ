@@ -162,9 +162,7 @@ function sendFrames(stream, socket) {
             blob &&
             isStreaming &&
             socket.readyState === WebSocket.OPEN &&
-            (frameCounter % 2 === 0 ||
-              frameCounter % 3 === 0 ||
-              frameCounter & (5 === 0))
+            frameCounter % 5 !== 0
           ) {
             blob.arrayBuffer().then((buffer) => {
               socket.send(buffer);
