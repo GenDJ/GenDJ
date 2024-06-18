@@ -88,6 +88,11 @@ source venv/bin/activate
 ```
 After running these commands, you will have pyenv and virtualenv set up, Python 3.10 installed, and a Python 3.10 environment created and sourced in your current directory.
 
+9. Install the requirements
+```
+pip install -r requirements.txt
+```
+
 # 
 
 Some version of this may someday live at https://gendj.com
