@@ -17,8 +17,28 @@ let isRendering = false;
 let currentStream = null; // Track the current stream globally
 let socket = null; // Global socket variable
 let stopFrameCapture = false; // Flag to stop frame capture
+let dropEvery = "none";
 
-console.log("womp1212");
+console.log("js loaded");
+
+const dropFrame = { // this is so dum lol
+  none: () => {
+    return true;
+  },
+  2: (frameCounter) => {
+    return frameCounter === 0 || frameCounter === 1 || frameCounter % 2 !== 0;
+  },
+  3: (frameCounter) => {
+    return frameCounter === 0 || frameCounter === 1 || frameCounter % 3 !== 0;
+  },
+  4: (frameCounter) => {
+    return frameCounter === 0 || frameCounter === 1 || frameCounter % 4 !== 0;
+  },
+  5: (frameCounter) => {
+    return frameCounter === 0 || frameCounter === 1 || frameCounter % 5 !== 0;
+  },
+};
+
 
 async function getVideoDevices() {
   const devices = await navigator.mediaDevices.enumerateDevices();
@@ -174,7 +194,7 @@ function sendFrames(stream, socket) {
             blob &&
             isStreaming &&
             socket.readyState === WebSocket.OPEN &&
-            frameCounter % 5 !== 0
+            dropFrame[dropEvery](frameCounter)
           ) {
             blob.arrayBuffer().then((buffer) => {
               socket.send(buffer);
@@ -290,4 +310,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.error("Webcam permissions are required to proceed.");
     }
   }
+
+  const frameDrop = document.getElementById("frameDrop");
+  frameDrop.addEventListener("change", function () {
+    dropEvery = frameDrop.value;
+    console.log("dropEvery set to:", dropEvery);
+  });
 });
