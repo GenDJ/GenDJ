@@ -93,7 +93,13 @@ After running these commands, you will have pyenv and virtualenv set up, Python 
 pip install -r requirements.txt
 ```
 
-# 
+10. ensure libturbojpeg is installed on your system
+`sudo apt install libturbojpeg`
+
+11. download the models
+`python download-models.py`
+
+# ETC
 
 Some version of this may someday live at https://gendj.com
 

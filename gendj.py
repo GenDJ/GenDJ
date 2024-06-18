@@ -162,8 +162,6 @@ class BroadcastStream(ThreadedWorker):
             print(f"Error in work: {e}")
 
     def cleanup(self):
-        self.sock.close()
-        self.context.term()
         sdl2.SDL_DestroyTexture(self.texture)
         sdl2.ext.quit()
 
