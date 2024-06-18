@@ -29,6 +29,67 @@ The [original realtime-i2i repo](https://github.com/kylemcdonald/i2i-realtime) I
 
 This project is stripped down to be only that solo way of running it, and only to accept frames from a webcam connected to a new web browser interface unique to this project.
 
+## env setup
+
+To install and set up pyenv and virtualenv on Ubuntu to install Python 3.10 and create and source a Python 3.10 environment in the current directory, you can follow these steps:
+
+1. Install Required Dependencies
+
+```
+sudo apt update
+sudo apt install -y make build-essential libssl-dev zlib1g-dev \
+libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
+libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev \
+liblzma-dev python3-openssl git
+```
+2. Install pyenv
+```
+curl https://pyenv.run | bash
+```
+3. Add pyenv to Shell Startup Script
+Add the following lines to your shell startup script (~/.bashrc, ~/.zshrc, or ~/.profile):
+```
+export PATH="$HOME/.pyenv/bin:$PATH"
+eval "$(pyenv init --path)"
+eval "$(pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
+```
+Then, apply the changes:
+
+```
+source ~/.bashrc
+```
+4. Install Python 3.10 Using pyenv
+```
+pyenv install 3.10.0
+```
+5. Set Up pyenv to Use Python 3.10
+```
+pyenv global 3.10.0
+```
+6. Install virtualenv (if not already installed via pyenv)
+```
+pip install virtualenv
+```
+7. Create a Virtual Environment in the Current Directory
+Navigate to your desired directory:
+```
+cd /path/to/your/project
+```
+Then, create the virtual environment:
+
+```
+python -m venv venv
+```
+
+8. Activate the Virtual Environment
+```
+source venv/bin/activate
+```
+After running these commands, you will have pyenv and virtualenv set up, Python 3.10 installed, and a Python 3.10 environment created and sourced in your current directory.
+
+# 
+
 Some version of this may someday live at https://gendj.com
 
 [ORIGINAL README HERE](https://github.com/kylemcdonald/i2i-realtime)
