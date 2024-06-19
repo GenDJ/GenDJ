@@ -11,7 +11,12 @@ from diffusion_processor import DiffusionProcessor
 from settings import Settings
 from settings_api import SettingsAPI
 from osc_settings_controller import OscSettingsController
-from image_utils import unpack_rgb444_image, uyvy_to_rgb_batch, half_size_batch, get_texture_size
+from image_utils import (
+    unpack_rgb444_image,
+    uyvy_to_rgb_batch,
+    half_size_batch,
+    get_texture_size,
+)
 import threading
 import asyncio
 import websockets
@@ -22,6 +27,8 @@ from threaded_worker import ThreadedWorker
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
 from PIL import Image
+
+
 class ThreadedWebsocket(ThreadedWorker):
     def __init__(self, settings):
         super().__init__(has_input=False, has_output=True)
@@ -92,6 +99,8 @@ class ThreadedWebsocket(ThreadedWorker):
     def start(self):
         self.parallel = threading.Thread(target=self.run)
         super().start()
+
+
 class Processor(ThreadedWorker):
     def __init__(self, settings):
         super().__init__(has_input=True, has_output=True, debug=True)
@@ -126,6 +135,7 @@ class Processor(ThreadedWorker):
             print("warming up, dropping old frames")
             self.clear_input()
 
+
 class BroadcastStream(ThreadedWorker):
     def __init__(self, port, settings, threaded_websocket):
         super().__init__(has_input=True, has_output=False)
@@ -148,7 +158,6 @@ class BroadcastStream(ThreadedWorker):
         except Exception as e:
             print(f"Error in broadcast_msg: {e}")
 
-
     def work(self, frame):
         try:
             while self.input_queue.qsize() > self.settings.batch_size:
@@ -162,8 +171,12 @@ class BroadcastStream(ThreadedWorker):
             print(f"Error in work: {e}")
 
     def cleanup(self):
-        sdl2.SDL_DestroyTexture(self.texture)
-        sdl2.ext.quit()
+        try:
+            if hasattr(self, "texture") and self.texture is not None:
+                sdl2.SDL_DestroyTexture(self.texture)
+            sdl2.ext.quit()
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
 
 
 settings = Settings()
