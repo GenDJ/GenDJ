@@ -30,6 +30,12 @@ The [original realtime-i2i repo](https://github.com/kylemcdonald/i2i-realtime) I
 This project is stripped down to be only that solo way of running it, and only to accept frames from a webcam connected to a new web browser interface unique to this project.
 
 ## env setup
+0. If you're on windows set up WSL 2 first https://learn.microsoft.com/en-us/windows/wsl/install then download ubuntu 24.04 from the microsoft store
+
+regardless,
+
+`git clone https://github.com/GenDJ/GenDJ.git` 
+and `cd` into the `GenDJ` directory
 
 To install and set up pyenv and virtualenv on Ubuntu to install Python 3.10 and create and source a Python 3.10 environment in the current directory, you can follow these steps:
 
@@ -40,7 +46,7 @@ sudo apt update
 sudo apt install -y make build-essential libssl-dev zlib1g-dev \
 libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
 libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev \
-liblzma-dev python3-openssl git
+liblzma-dev python3-openssl git libturbojpeg
 ```
 2. Install pyenv
 ```
@@ -92,11 +98,7 @@ After running these commands, you will have pyenv and virtualenv set up, Python 
 ```
 pip install -r requirements.txt
 ```
-
-10. ensure libturbojpeg is installed on your system
-`sudo apt install libturbojpeg`
-
-11. download the models
+10. download the models
 `python download-models.py`
 
 # ETC
