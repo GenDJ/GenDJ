@@ -1,88 +1,96 @@
+// Constants
+const WEBSOCKET_URL = "ws://localhost:8765";
+const PROMPT_ENDPOINT_URL_BASE = "http://localhost:5556/prompt/";
 const croppedCanvas = document.getElementById("croppedCanvas");
 const processedCanvas = document.getElementById("processedCanvas");
 const croppedCtx = croppedCanvas.getContext("2d");
 const processedCtx = processedCanvas.getContext("2d");
-let isStreaming = false;
-const toggleButton = document.getElementById("toggle");
-let selectedDeviceId;
+const FRAME_WIDTH = 512;
+const FRAME_HEIGHT = 512;
+const FRAME_RATE = 24;
 
-toggleButton.addEventListener("click", function () {
-  isStreaming = !isStreaming;
-  this.textContent = isStreaming ? "Stop" : "Start";
-});
-
-const frameQueue = [];
-const frameTimestamps = [];
-let isRendering = false;
-let currentStream = null; // Track the current stream globally
-let socket = null; // Global socket variable
-let stopFrameCapture = false; // Flag to stop frame capture
-let dropEvery = "none";
-
-console.log("js loaded");
-
-const dropFrame = {
-  none: () => {
-    return true;
-  },
-  2: (frameCounter) => {
-    return frameCounter === 0 || frameCounter === 1 || frameCounter % 2 !== 0;
-  },
-  3: (frameCounter) => {
-    return frameCounter === 0 || frameCounter === 1 || frameCounter % 3 !== 0;
-  },
-  4: (frameCounter) => {
-    return frameCounter === 0 || frameCounter === 1 || frameCounter % 4 !== 0;
-  },
-  5: (frameCounter) => {
-    return frameCounter === 0 || frameCounter === 1 || frameCounter % 5 !== 0;
-  },
+// State
+const stateRofl = {
+  stream: null,
+  socket: null,
+  selectedDeviceId: null,
+  isStreaming: false,
+  isRendering: false,
 };
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// Frame control variables
+const frameQueue = [];
+const frameTimestamps = [];
+let dropEvery = "none";
 
-function connectWebSocket() {
-  socket = new WebSocket("ws://localhost:8765");
+const dropFrame = (n) => (frameCounter) => {
+  return frameCounter === 0 || frameCounter === 1 || frameCounter % n !== 0;
+};
 
-  socket.binaryType = "arraybuffer";
+const dropFrameStrategies = {
+  none: () => true,
+  2: dropFrame(2),
+  3: dropFrame(3),
+  4: dropFrame(4),
+  5: dropFrame(5),
+};
 
-  socket.onopen = () => {
-    console.log("WebSocket connection opened");
-  };
-
-  socket.onmessage = (event) => {
-    const blob = new Blob([event.data], { type: "image/jpeg" });
-    const url = URL.createObjectURL(blob);
-
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      frameQueue.push(img);
-      frameTimestamps.push(Date.now());
-      calculateFPS();
-    };
-    img.src = url;
-  };
-
-  socket.onclose = () => {
-    console.log("WebSocket connection closed");
-    stopCurrentStream();
-    (async () => {
-      await reconnect();
-    })();
-  };
-
-  socket.onerror = (error) => {
-    console.error("WebSocket error:", error);
-  };
+function sleep(ms) {
+  new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function reconnect() {
-  console.log("Attempting to reconnect WebSocket. sleeping...");
-  await sleep(200); // Wait for .2 seconds before attempting to reconnect
-  console.log("woke up");
-  connectWebSocket();
-  startVideoStream(selectedDeviceId);
+// Event Listeners
+document.getElementById("toggle").addEventListener("click", handleToggleButton);
+document.getElementById("send").addEventListener("click", sendPrompt);
+document.getElementById("prompt").addEventListener("keydown", function (event) {
+  if (event.key === "Enter") {
+    sendPrompt();
+  }
+});
+
+document.addEventListener("DOMContentLoaded", async () => {
+  if (await hasWebcamPermissions()) {
+    await initializeWebcam();
+  } else {
+    try {
+      await requestWebcamPermissions();
+      await initializeWebcam();
+    } catch (error) {
+      console.error("Webcam permissions are required to proceed.");
+    }
+  }
+
+  const frameDrop = document.getElementById("frameDrop");
+  frameDrop.addEventListener("change", function () {
+    dropEvery = frameDrop.value;
+    console.log("dropEvery set to:", dropEvery);
+  });
+});
+
+// Function Definitions
+
+function handleToggleButton() {
+  stateRofl.isStreaming = !stateRofl.isStreaming;
+  this.textContent = stateRofl.isStreaming ? "Stop" : "Start";
+}
+
+async function initializeWebcam() {
+  await selectVideoDevice();
+  await startVideoStream(stateRofl.selectedDeviceId);
+}
+
+async function hasWebcamPermissions() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    stream.getTracks().forEach((track) => track.stop());
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function requestWebcamPermissions() {
+  await navigator.mediaDevices.getUserMedia({ video: true });
 }
 
 async function getVideoDevices() {
@@ -102,68 +110,97 @@ async function selectVideoDevice() {
     deviceList.appendChild(option);
   });
 
-  selectedDeviceId = devices.length > 0 ? devices[0].deviceId : null;
+  stateRofl.selectedDeviceId = devices.length > 0 ? devices[0].deviceId : null;
 
-  if (selectedDeviceId) {
-    console.log("Initial selected device ID:", selectedDeviceId);
+  if (stateRofl.selectedDeviceId) {
+    console.log("Initial selected device ID:", stateRofl.selectedDeviceId);
   }
 
   deviceList.addEventListener("change", async () => {
-    selectedDeviceId = deviceList.value;
-    console.log("User selected device ID:", selectedDeviceId);
-    if (currentStream) {
+    stateRofl.selectedDeviceId = deviceList.value;
+    console.log("User selected device ID:", stateRofl.selectedDeviceId);
+    if (stateRofl.stream) {
       stopCurrentStream(); // Stop the current stream
     }
-    await startVideoStream(selectedDeviceId); // Start a new stream with the selected device ID
+    await startVideoStream(stateRofl.selectedDeviceId); // Start a new stream with the selected device ID
   });
-
-  return selectedDeviceId;
 }
 
 async function startVideoStream(deviceId) {
-  stopFrameCapture = true; // Stop any ongoing frame capture
+  console.log("startVideoStream");
   await sleep(100);
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
+    stateRofl.stream = await navigator.mediaDevices.getUserMedia({
       video: {
         deviceId: { exact: deviceId },
-        width: { ideal: 512 },
-        height: { ideal: 512 },
+        width: { ideal: FRAME_WIDTH },
+        height: { ideal: FRAME_HEIGHT },
       },
     });
 
-    stopFrameCapture = false; // Allow frame capture for the new stream
-    currentStream = stream; // Update the current stream
-
-    if (!socket) {
+    if (!stateRofl.socket) {
       connectWebSocket();
     }
-
-    sendFrames(stream, socket);
+    
     renderFrames();
+    sendFrames();
   } catch (error) {
     console.error("Error accessing webcam:", error);
   }
 }
 
 function stopCurrentStream() {
-  stopFrameCapture = true; // Stop capturing frames
-  if (currentStream) {
-    currentStream.getTracks().forEach((track) => track.stop());
-    currentStream = null;
+  if (stateRofl.stream) {
+    stateRofl.stream.getTracks().forEach((track) => track.stop());
   }
 }
 
-function sendFrames(stream, socket) {
-  const videoTrack = stream.getVideoTracks()[0];
+function connectWebSocket() {
+  stateRofl.socket = new WebSocket(WEBSOCKET_URL);
+
+  stateRofl.socket.binaryType = "arraybuffer";
+
+  stateRofl.socket.onopen = () => {
+    console.log("WebSocket connection opened");
+  };
+
+  stateRofl.socket.onmessage = (event) => {
+    const blob = new Blob([event.data], { type: "image/jpeg" });
+    const url = URL.createObjectURL(blob);
+
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      frameQueue.push(img);
+      frameTimestamps.push(Date.now());
+      calculateFPS();
+    };
+    img.src = url;
+  };
+
+  stateRofl.socket.onclose = reconnectWebSocket;
+
+  stateRofl.socket.onerror = (error) => {
+    console.error("WebSocket error:", error);
+  };
+}
+
+async function reconnectWebSocket() {
+  console.log("WebSocket connection closed. Attempting to reconnect...");
+  await sleep(100); // Wait before attempting to reconnect
+  connectWebSocket();
+}
+
+function sendFrames() {
+  console.log("sendFrames");
+
+  const videoTrack = stateRofl.stream.getVideoTracks()[0];
   const imageCapture = new ImageCapture(videoTrack);
   let frameCounter = 0;
   let lastFrameTime = 0;
-  const frameDuration = 1000 / 24;
+  const frameDuration = 1000 / FRAME_RATE;
 
   const sendFrame = async (currentTime) => {
-    if (stopFrameCapture) return; // Exit if frame capture is stopped
-
     if (currentTime - lastFrameTime < frameDuration) {
       requestAnimationFrame(sendFrame);
       return;
@@ -175,50 +212,43 @@ function sendFrames(stream, socket) {
       }
 
       const frame = await imageCapture.grabFrame();
-      const cropSize = 512;
-      const cropX = Math.max(0, (frame.width - cropSize) / 2);
-      const cropY = Math.max(0, (frame.height - cropSize) / 2);
 
-      const targetWidth = 512;
-      const targetHeight = 512;
+      croppedCanvas.width = FRAME_WIDTH;
+      croppedCanvas.height = FRAME_HEIGHT;
 
-      croppedCanvas.width = targetWidth;
-      croppedCanvas.height = targetHeight;
-
-      const scaleWidth = targetWidth / frame.width;
-      const scaleHeight = targetHeight / frame.height;
+      const scaleWidth = FRAME_WIDTH / frame.width;
+      const scaleHeight = FRAME_HEIGHT / frame.height;
       const scale = Math.min(scaleWidth, scaleHeight);
 
       const scaledWidth = frame.width * scale;
       const scaledHeight = frame.height * scale;
 
-      const dx = (targetWidth - scaledWidth) / 2;
-      const dy = (targetHeight - scaledHeight) / 2;
+      const dx = (FRAME_WIDTH - scaledWidth) / 2;
+      const dy = (FRAME_HEIGHT - scaledHeight) / 2;
 
-      croppedCtx.clearRect(0, 0, targetWidth, targetHeight);
+      croppedCtx.clearRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
       croppedCtx.drawImage(frame, dx, dy, scaledWidth, scaledHeight);
-
-      if (frameCounter === 1) {
-        console.log("f1212", frame.width, frame.height, cropSize, cropX, cropY);
-      }
 
       croppedCanvas.toBlob(
         (blob) => {
           if (
             blob &&
-            isStreaming &&
-            socket.readyState === WebSocket.OPEN &&
-            dropFrame[dropEvery](frameCounter)
+            stateRofl.isStreaming &&
+            stateRofl.socket &&
+            stateRofl.socket.readyState === WebSocket.OPEN &&
+            dropFrameStrategies[dropEvery](frameCounter)
           ) {
             blob.arrayBuffer().then((buffer) => {
-              socket.send(buffer);
+              if (
+                stateRofl.socket &&
+                stateRofl.socket.readyState === WebSocket.OPEN
+              ) {
+                stateRofl.socket.send(buffer);
+              }
             });
           }
           lastFrameTime = currentTime;
-          if (!stopFrameCapture) {
-            requestAnimationFrame(sendFrame.bind(this));
-          }
-
+          requestAnimationFrame(sendFrame);
           frameCounter++;
         },
         "image/jpeg",
@@ -229,18 +259,18 @@ function sendFrames(stream, socket) {
     }
   };
 
-  console.log("kickingoff1212");
+  console.log("kicking off");
   sendFrame();
 }
 
 function renderFrames() {
-  if (!isRendering) {
-    isRendering = true;
+  if (!stateRofl.isRendering) {
+    stateRofl.isRendering = true;
     let lastRenderTime = Date.now();
     const render = () => {
       const now = Date.now();
       const fps = calculateFPS();
-      const interval = fps > 0 ? 1000 / fps : 1000 / 24;
+      const interval = fps > 0 ? 1000 / fps : 1000 / FRAME_RATE;
       if (
         (frameQueue.length > 0 && now - lastRenderTime >= interval) ||
         frameQueue.length > 8 ||
@@ -262,10 +292,10 @@ function renderFrames() {
   }
 }
 
-document.getElementById("send").addEventListener("click", function () {
-  var promptText = document.getElementById("prompt").value;
-  var encodedPrompt = encodeURIComponent(promptText);
-  var endpoint = "http://localhost:5556/prompt/" + encodedPrompt;
+function sendPrompt() {
+  const promptText = document.getElementById("prompt").value;
+  const encodedPrompt = encodeURIComponent(promptText);
+  const endpoint = `${PROMPT_ENDPOINT_URL_BASE}${encodedPrompt}`;
 
   fetch(endpoint, {
     method: "POST",
@@ -275,7 +305,7 @@ document.getElementById("send").addEventListener("click", function () {
     .catch((error) => {
       console.error("Error:", error);
     });
-});
+}
 
 function calculateFPS() {
   const now = Date.now();
@@ -290,40 +320,3 @@ function calculateFPS() {
   ).innerText = `Queue size: ${frameQueue.length}`;
   return fps + 1;
 }
-
-document.getElementById("prompt").addEventListener("keydown", function (event) {
-  if (event.key === "Enter") {
-    document.getElementById("send").click();
-  }
-});
-
-document.addEventListener("DOMContentLoaded", async () => {
-  async function hasWebcamPermissions() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      stream.getTracks().forEach((track) => track.stop());
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
-
-  if (await hasWebcamPermissions()) {
-    const deviceId = await selectVideoDevice();
-    await startVideoStream(deviceId);
-  } else {
-    try {
-      await navigator.mediaDevices.getUserMedia({ video: true });
-      const deviceId = await selectVideoDevice();
-      await startVideoStream(deviceId);
-    } catch (error) {
-      console.error("Webcam permissions are required to proceed.");
-    }
-  }
-
-  const frameDrop = document.getElementById("frameDrop");
-  frameDrop.addEventListener("change", function () {
-    dropEvery = frameDrop.value;
-    console.log("dropEvery set to:", dropEvery);
-  });
-});
