@@ -25,8 +25,9 @@ from turbojpeg import TurboJPEG, TJPF_BGR
 import time
 from threaded_worker import ThreadedWorker
 from concurrent.futures import ThreadPoolExecutor
-import asyncio
 from PIL import Image
+import signal
+import sys
 
 
 class ThreadedWebsocket(ThreadedWorker):
@@ -38,6 +39,7 @@ class ThreadedWebsocket(ThreadedWorker):
         self.batch = []
         self.settings_batch = []
         self.batch_size = settings.batch_size
+        self.loop = None  # Initialize the event loop as None
 
     async def handler(self, websocket, path):
         self.websocket = websocket
@@ -69,8 +71,11 @@ class ThreadedWebsocket(ThreadedWorker):
             print("WebSocket handler finished")
 
     async def send_data(self, data):
-        if self.websocket is not None:
-            await self.websocket.send(data)
+        if self.websocket is not None and self.websocket.open:
+            try:
+                await self.websocket.send(data)
+            except Exception as e:
+                print(f"Error sending data: {e}")
         else:
             print("No active WebSocket connection")
 
@@ -81,19 +86,19 @@ class ThreadedWebsocket(ThreadedWorker):
         asyncio.set_event_loop(self.loop)
         self.server = websockets.serve(self.handler, "0.0.0.0", self.ws_port)
         self.loop.run_until_complete(self.server)
-        print(f"WebSocket server1212 started on port {self.ws_port}")
+        print(f"WebSocket server started on port {self.ws_port}")
 
     def work(self):
         try:
             self.loop.run_forever()
         except KeyboardInterrupt:
             print("Server interrupted")
-        finally:
             self.cleanup()
 
     def cleanup(self):
         if self.loop.is_running():
             self.loop.stop()
+        self.loop.close()
         print("WebSocket server stopped")
 
     def start(self):
@@ -152,9 +157,12 @@ class BroadcastStream(ThreadedWorker):
     def broadcast_msg(self, jpg):
         try:
             if self.threaded_websocket is not None:
-                asyncio.run(self.threaded_websocket.send_data(jpg))
+                future = asyncio.run_coroutine_threadsafe(
+                    self.threaded_websocket.send_data(jpg), self.threaded_websocket.loop
+                )
+                future.result()  # Wait for the coroutine to complete
             else:
-                print("No active WebSocket connection1212")
+                print("No active WebSocket connection")
         except Exception as e:
             print(f"Error in broadcast_msg: {e}")
 
@@ -166,7 +174,7 @@ class BroadcastStream(ThreadedWorker):
             if self.threaded_websocket is not None:
                 self.broadcast_msg(frame)
             else:
-                print("No active WebSocket connection1212")
+                print("No active WebSocket connection")
         except Exception as e:
             print(f"Error in work: {e}")
 
@@ -189,6 +197,22 @@ processor = Processor(settings).feed(receiver)
 display = BroadcastStream(settings.output_port, settings, receiver).feed(processor)
 
 
+# Main program signal handling
+def signal_handler(signal, frame):
+    print("Signal received, closing...")
+    settings_api.close()
+    settings_controller.close()
+    display.close()
+    processor.close()
+    receiver.close()
+    sys.exit(0)
+
+
+# Register signal handlers
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+# Start the components
 settings_api.start()
 settings_controller.start()
 display.start()
@@ -198,11 +222,5 @@ receiver.start()
 try:
     while True:
         time.sleep(1)
-except:
-    pass
-
-settings_api.close()
-settings_controller.close()
-display.close()
-processor.close()
-receiver.close()
+except KeyboardInterrupt:
+    signal_handler(signal.SIGINT, None)
