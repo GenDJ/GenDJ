@@ -95,6 +95,12 @@ setup_ssh
 start_jupyter
 export_env_vars
 
+if [[ -z "${RUNPOD_PROJECT_ID}" ]]; then
+    echo "start1212 RUNPOD_PROJECT_ID environment variable is not set."
+else
+    echo "start1212 RUNPOD_PROJECT_ID: ${RUNPOD_PROJECT_ID}"
+fi
+
 execute_script "/post_start.sh" "Running post-start script..."
 
 echo "Start script(s) finished, pod is ready to use."
