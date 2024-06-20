@@ -19,8 +19,10 @@ from fixed_size_dict import FixedSizeDict
 
 class DiffusionProcessor:
     def __init__(self, warmup=None, local_files_only=True):
-        base_model = "stabilityai/sdxl-turbo"
-        vae_model = "madebyollin/taesdxl"
+        # base_model = "stabilityai/sdxl-turbo"
+        # vae_model = "madebyollin/taesdxl"
+        base_model = "./saved_pipeline/sdxl-turbo"
+        vae_model = "./saved_pipeline/taesdxl"
 
         warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
 
