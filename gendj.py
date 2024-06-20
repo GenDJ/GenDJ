@@ -97,7 +97,8 @@ class ThreadedWebsocket(ThreadedWorker):
 
     def cleanup(self):
         if self.loop.is_running():
-            self.loop.stop()
+            self.loop.call_soon_threadsafe(self.loop.stop)
+        self.loop.run_until_complete(self.server.wait_closed())
         self.loop.close()
         print("WebSocket server stopped")
 
@@ -205,6 +206,14 @@ def signal_handler(signal, frame):
     display.close()
     processor.close()
     receiver.close()
+
+    # Wait for all threads to finish
+    settings_api.join()
+    settings_controller.join()
+    display.join()
+    processor.join()
+    receiver.join()
+
     sys.exit(0)
 
 
