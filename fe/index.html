@@ -129,6 +129,14 @@
         flex-direction: column;
         align-items: center;
       }
+
+      .feeds.horizontal {
+        flex-direction: row-reverse;
+      }
+
+      .feeds.horizontal > canvas {
+        width: 50%;
+      }
     </style>
   </head>
   <body>
@@ -232,6 +240,11 @@
         >
           Anime magic
         </option>
+        <option
+          value="an illustration of a dog, dog, dog ears, whiskers, fur, colorful, doggy, puppy, dog face, a dog wearing glasses, fur, woof, barking, animal, canine, dog, illustrated dog, dog illustration"
+        >
+          Doggy
+        </option>
       </select>
       <textarea id="prompt" placeholder="Enter prompt..." rows="4"></textarea>
 
@@ -243,9 +256,10 @@
 
       <button id="send" class="btn">Submit prompt</button>
       <button id="toggle" class="btn btn-secondary">Start</button>
+      <button id="position" class="btn btn-secondary">Toggle Position</button>
     </div>
 
-    <div class="container feeds">
+    <div id="feedContainer" class="container feeds">
       <canvas id="processedCanvas" width="512" height="512"></canvas>
       <canvas id="croppedCanvas" width="512" height="512"></canvas>
     </div>

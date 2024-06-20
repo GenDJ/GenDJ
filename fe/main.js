@@ -48,12 +48,14 @@ document.getElementById("prompt").addEventListener("keydown", function (event) {
     event.preventDefault();
   }
 });
-document.getElementById("postText").addEventListener("keydown", function (event) {
-  if (event.key === "Enter") {
-    sendPrompt();
-    event.preventDefault();
-  }
-});
+document
+  .getElementById("postText")
+  .addEventListener("keydown", function (event) {
+    if (event.key === "Enter") {
+      sendPrompt();
+      event.preventDefault();
+    }
+  });
 
 document.addEventListener("DOMContentLoaded", async () => {
   if (await hasWebcamPermissions()) {
@@ -75,6 +77,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // New JavaScript for the added features
   const toggleDiagnostics = document.getElementById("toggleDiagnostics");
+  const positionBtn = document.getElementById("position");
+  const feedContainer = document.getElementById("feedContainer");
   const diagnostics = document.getElementById("diagnostics");
   const promptLibrary = document.getElementById("promptLibrary");
   const promptInput = document.getElementById("prompt");
@@ -89,6 +93,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  positionBtn.addEventListener("click", () => {
+    if (feedContainer.classList.contains("horizontal")) {
+      feedContainer.classList.remove("horizontal");
+    } else {
+      feedContainer.classList.add("horizontal");
+    }
+  });
 
   promptLibrary.addEventListener("change", (event) => {
     promptInput.value = event.target.value;
@@ -323,7 +334,7 @@ function renderFrames() {
 function sendPrompt() {
   const promptText = document.getElementById("prompt").value;
   const postText = document.getElementById("postText").value;
-  const encodedPrompt = encodeURIComponent(`${promptText + ' ' + postText}`);
+  const encodedPrompt = encodeURIComponent(`${promptText + " " + postText}`);
   const endpoint = `${PROMPT_ENDPOINT_URL_BASE}${encodedPrompt}`;
 
   fetch(endpoint, {
