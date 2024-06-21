@@ -45,8 +45,17 @@ document.getElementById("send").addEventListener("click", sendPrompt);
 document.getElementById("prompt").addEventListener("keydown", function (event) {
   if (event.key === "Enter") {
     sendPrompt();
+    event.preventDefault();
   }
 });
+document
+  .getElementById("postText")
+  .addEventListener("keydown", function (event) {
+    if (event.key === "Enter") {
+      sendPrompt();
+      event.preventDefault();
+    }
+  });
 
 document.addEventListener("DOMContentLoaded", async () => {
   if (await hasWebcamPermissions()) {
@@ -64,6 +73,36 @@ document.addEventListener("DOMContentLoaded", async () => {
   frameDrop.addEventListener("change", function () {
     dropEvery = frameDrop.value;
     console.log("dropEvery set to:", dropEvery);
+  });
+
+  // New JavaScript for the added features
+  const toggleDiagnostics = document.getElementById("toggleDiagnostics");
+  const positionBtn = document.getElementById("position");
+  const feedContainer = document.getElementById("feedContainer");
+  const diagnostics = document.getElementById("diagnostics");
+  const promptLibrary = document.getElementById("promptLibrary");
+  const promptInput = document.getElementById("prompt");
+
+  toggleDiagnostics.addEventListener("click", () => {
+    if (diagnostics.style.display === "none") {
+      diagnostics.style.display = "block";
+      toggleDiagnostics.textContent = "Hide Options";
+    } else {
+      diagnostics.style.display = "none";
+      toggleDiagnostics.textContent = "Show Options";
+    }
+  });
+
+  positionBtn.addEventListener("click", () => {
+    if (feedContainer.classList.contains("horizontal")) {
+      feedContainer.classList.remove("horizontal");
+    } else {
+      feedContainer.classList.add("horizontal");
+    }
+  });
+
+  promptLibrary.addEventListener("change", (event) => {
+    promptInput.value = event.target.value;
   });
 });
 
@@ -141,7 +180,7 @@ async function startVideoStream(deviceId) {
     if (!stateRofl.socket) {
       connectWebSocket();
     }
-    
+
     renderFrames();
     sendFrames();
   } catch (error) {
@@ -294,7 +333,8 @@ function renderFrames() {
 
 function sendPrompt() {
   const promptText = document.getElementById("prompt").value;
-  const encodedPrompt = encodeURIComponent(promptText);
+  const postText = document.getElementById("postText").value;
+  const encodedPrompt = encodeURIComponent(`${promptText + " " + postText}`);
   const endpoint = `${PROMPT_ENDPOINT_URL_BASE}${encodedPrompt}`;
 
   fetch(endpoint, {
