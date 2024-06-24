@@ -45,7 +45,7 @@ WORKDIR /workspace/GenDJ
 
 # Install GenDJ requirements
 RUN pip install -r requirements.txt
-RUN chmod +x /run_dockerized.sh
+RUN chmod +x ./run_containerized.sh
 
 RUN python -m venv /workspace/GenDJ/venv
 ENV PATH="/workspace/GenDJ/venv/bin:$PATH"

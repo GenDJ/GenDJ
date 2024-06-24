@@ -72,7 +72,7 @@ run_gendj() {
         sed -i "s|const PROMPT_ENDPOINT_URL_BASE = \"http://localhost:5556/prompt/\";|const PROMPT_ENDPOINT_URL_BASE = \"https://${RUNPOD_POD_ID}-5556.proxy.runpod.net:5556/prompt/\";|" ./fe/main.js
         
         # Run the script to start GenDJ
-        ./run_dockerized.sh
+        ./run_containerized.sh
     fi
 }
 

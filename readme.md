@@ -107,7 +107,7 @@ To download models locally, `python cache-models.py` and for some reason I then 
 
 Then update the version in docker-bake.hcl and build/push with `docker buildx bake --push --progress=plain`
 
-When containerized it then runs via `run_dockerized.sh` so that it uses the cached models in `./saved_pipeline`
+When containerized it then runs via `run_containerized.sh` so that it uses the cached models in `./saved_pipeline`
 
 # ETC
 
