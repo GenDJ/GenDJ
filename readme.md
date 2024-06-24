@@ -101,6 +101,14 @@ pip install -r requirements.txt
 10. download the models
 `python download-models.py`
 
+# Containerizing
+
+To download models locally, `python cache-models.py` and for some reason I then had to manually download `diffusion_pytorch_model.bin` for taesdxl
+
+Then update the version in docker-bake.hcl and build/push with `docker buildx bake --push --progress=plain`
+
+When containerized it then runs via `run_dockerized.sh` so that it uses the cached models in `./saved_pipeline`
+
 # ETC
 
 Some version of this may someday live at https://gendj.com
