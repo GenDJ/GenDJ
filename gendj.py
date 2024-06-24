@@ -28,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 from PIL import Image
 import signal
 import sys
-
+import argparse
 
 class ThreadedWebsocket(ThreadedWorker):
     def __init__(self, settings):
@@ -40,6 +40,7 @@ class ThreadedWebsocket(ThreadedWorker):
         self.settings_batch = []
         self.batch_size = settings.batch_size
         self.loop = None  # Initialize the event loop as None
+        self.settings = settings
 
     async def handler(self, websocket, path):
         self.websocket = websocket
@@ -52,7 +53,7 @@ class ThreadedWebsocket(ThreadedWorker):
                 frame = self.jpeg.decode(frame_data_np, pixel_format=TJPF_RGB)
                 img = torch.from_numpy(frame).permute(2, 0, 1)
                 self.batch.append(img.to("cuda"))  # on GPU from here
-                self.settings_batch.append(settings.copy())
+                self.settings_batch.append(self.settings.copy())
 
                 n = self.batch_size
                 if len(self.batch) >= n:
@@ -98,7 +99,8 @@ class ThreadedWebsocket(ThreadedWorker):
     def cleanup(self):
         if self.loop.is_running():
             self.loop.call_soon_threadsafe(self.loop.stop)
-        self.loop.run_until_complete(self.server.wait_closed())
+        if hasattr(self.server, "wait_closed"):
+            self.loop.run_until_complete(self.server.wait_closed())
         self.loop.close()
         print("WebSocket server stopped")
 
@@ -106,16 +108,21 @@ class ThreadedWebsocket(ThreadedWorker):
         self.parallel = threading.Thread(target=self.run)
         super().start()
 
+    def close(self):
+        self.loop.call_soon_threadsafe(self.loop.stop)
+        super().close()
+
 
 class Processor(ThreadedWorker):
-    def __init__(self, settings):
+    def __init__(self, settings, use_cached=False):
         super().__init__(has_input=True, has_output=True, debug=True)
         self.batch_size = settings.batch_size
         self.settings = settings
         self.jpeg = TurboJPEG()
+        self.use_cached = use_cached
 
     def setup(self):
-        self.diffusion_processor = DiffusionProcessor()
+        self.diffusion_processor = DiffusionProcessor(use_cached=self.use_cached)
         self.clear_input()  # drop old frames
         self.runs = 0
 
@@ -188,48 +195,58 @@ class BroadcastStream(ThreadedWorker):
             print(f"Error during cleanup: {e}")
 
 
-settings = Settings()
-settings_api = SettingsAPI(settings)
-settings_controller = OscSettingsController(settings)
+def main():
+    parser = argparse.ArgumentParser(description="Run gendj.py with specified options.")
+    parser.add_argument(
+        "--use_cached",
+        action="store_true",
+        help="Use cached models in DiffusionProcessor",
+    )
+    args = parser.parse_args()
 
-receiver = ThreadedWebsocket(settings)
+    settings = Settings()
+    settings_api = SettingsAPI(settings)
+    settings_controller = OscSettingsController(settings)
 
-processor = Processor(settings).feed(receiver)
-display = BroadcastStream(settings.output_port, settings, receiver).feed(processor)
+    receiver = ThreadedWebsocket(settings)
+    processor = Processor(settings, use_cached=args.use_cached).feed(receiver)
+    display = BroadcastStream(settings.output_port, settings, receiver).feed(processor)
+
+    # Main program signal handling
+    def signal_handler(signal, frame):
+        print("Signal received, closing...")
+        settings_api.close()
+        settings_controller.close()
+        display.close()
+        processor.close()
+        receiver.close()
+
+        # Wait for all threads to finish
+        # settings_api.join()
+        settings_controller.join()
+        display.join()
+        processor.join()
+        receiver.join()
+
+        sys.exit(0)
+
+    # Register signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    # Start the components
+    settings_api.start()
+    settings_controller.start()
+    display.start()
+    processor.start()
+    receiver.start()
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        signal_handler(signal.SIGINT, None)
 
 
-# Main program signal handling
-def signal_handler(signal, frame):
-    print("Signal received, closing...")
-    settings_api.close()
-    settings_controller.close()
-    display.close()
-    processor.close()
-    receiver.close()
-
-    # Wait for all threads to finish
-    settings_api.join()
-    settings_controller.join()
-    display.join()
-    processor.join()
-    receiver.join()
-
-    sys.exit(0)
-
-
-# Register signal handlers
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
-
-# Start the components
-settings_api.start()
-settings_controller.start()
-display.start()
-processor.start()
-receiver.start()
-
-try:
-    while True:
-        time.sleep(1)
-except KeyboardInterrupt:
-    signal_handler(signal.SIGINT, None)
+if __name__ == "__main__":
+    main()
