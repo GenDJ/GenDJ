@@ -1,10 +1,10 @@
 #!/bin/bash
 
-if [[ -z "${RUNPOD_PROJECT_ID}" ]]; then
-    echo "1212post_start RUNPOD_PROJECT_ID environment variable is not set. Exiting."
+if [[ -z "${RUNPOD_POD_ID}" ]]; then
+    echo "1212post_start RUNPOD_POD_ID environment variable is not set. Exiting."
     exit 0
 else
-    echo "1212post_start RUNPOD_PROJECT_ID: ${RUNPOD_PROJECT_ID}"
+    echo "1212post_start RUNPOD_POD_ID: ${RUNPOD_POD_ID}"
 fi
 
 check_interval=60

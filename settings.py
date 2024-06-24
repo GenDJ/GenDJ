@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     settings_port: int = Field(default=5556)
     job_finish_port: int = Field(default=5557)
     output_port: int = Field(default=5558)
-    osc_port: int = Field(default=8000)
+    osc_port: int = Field(default=9091)
     primary_hostname: str = Field(default="localhost")
     websocket_port = 8765
     websocket_address = "ws://localhost:8765"

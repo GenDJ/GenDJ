@@ -8,7 +8,7 @@ const processedCtx = processedCanvas.getContext("2d");
 const FRAME_WIDTH = 512;
 const FRAME_HEIGHT = 512;
 const FRAME_RATE = 24;
-
+let fps = 16;
 // State
 const stateRofl = {
   stream: null,
@@ -16,8 +16,108 @@ const stateRofl = {
   selectedDeviceId: null,
   isStreaming: false,
   isRendering: false,
+  isRenderSmooth: false,
 };
 
+const renderFlash = () => {
+  const now = Date.now();
+  const fps = calculateFPS();
+  const interval = fps > 0 ? 1000 / fps : 1000 / FRAME_RATE;
+  if (
+    (frameQueue.length > 0 && now - lastRenderTime >= interval) ||
+    frameQueue.length > 8 ||
+    (frameQueue.length > 0 && now - lastRenderTime >= 1000)
+  ) {
+    const img = frameQueue.shift();
+    processedCtx.drawImage(
+      img,
+      0,
+      0,
+      processedCanvas.width,
+      processedCanvas.height
+    );
+    lastRenderTime = now;
+  }
+  requestAnimationFrame(stateRofl.selectedRender);
+};
+
+let lastRenderTime = Date.now();
+let fadeDuration = 500; // duration of fade in milliseconds
+let fadeStartTime = null;
+let currentImg = null;
+let nextImg = null;
+
+const renderSmooth = () => {
+  stateRofl.isRendering = true;
+
+  const now = Date.now();
+  const safeFps = Math.max(fps, 1);
+  const interval = 1000 / safeFps; // interval
+
+  if (
+    frameQueue.length > 0 &&
+    (now - lastRenderTime >= interval ||
+      frameQueue.length > 8 ||
+      (frameQueue.length > 0 && now - lastRenderTime >= 1000))
+  ) {
+    fadeStartTime = now;
+    currentImg = nextImg;
+    nextImg = frameQueue.shift();
+    lastRenderTime = now;
+  }
+
+  if (currentImg && nextImg && fadeStartTime !== null) {
+    let fadeElapsed = now - fadeStartTime;
+    let fadeProgress = Math.min(fadeElapsed / fadeDuration, 1);
+
+    // Clear the canvas
+    processedCtx.clearRect(0, 0, processedCanvas.width, processedCanvas.height);
+
+    // Draw the current image with fading out
+    processedCtx.globalAlpha = 1;
+    processedCtx.drawImage(
+      currentImg,
+      0,
+      0,
+      processedCanvas.width,
+      processedCanvas.height
+    );
+
+    // Draw the next image with fading in
+    processedCtx.globalAlpha = fadeProgress;
+    processedCtx.drawImage(
+      nextImg,
+      0,
+      0,
+      processedCanvas.width,
+      processedCanvas.height
+    );
+
+    // Reset globalAlpha to 1 for other drawing operations
+    processedCtx.globalAlpha = 1;
+
+    // Once the fade is complete, reset currentImg
+    if (fadeProgress === 1) {
+      currentImg = nextImg;
+      nextImg = null;
+      fadeStartTime = null;
+    }
+  } else if (currentImg && !nextImg) {
+    // If there is no next image, continue displaying the current image
+    processedCtx.globalAlpha = 1;
+    processedCtx.drawImage(
+      currentImg,
+      0,
+      0,
+      processedCanvas.width,
+      processedCanvas.height
+    );
+  }
+
+  requestAnimationFrame(stateRofl.selectedRender);
+};
+
+stateRofl.selectedRender = renderFlash;
 // Frame control variables
 const frameQueue = [];
 const frameTimestamps = [];
@@ -40,7 +140,13 @@ function sleep(ms) {
 }
 
 // Event Listeners
-document.getElementById("toggle").addEventListener("click", handleToggleButton);
+document
+  .getElementById("toggleStreaming")
+  .addEventListener("click", handleToggleStreamingButton);
+document
+  .getElementById("toggleRenderSmooth")
+  .addEventListener("click", handleToggleRenderSmoothButton);
+
 document.getElementById("send").addEventListener("click", sendPrompt);
 document.getElementById("prompt").addEventListener("keydown", function (event) {
   if (event.key === "Enter") {
@@ -108,9 +214,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Function Definitions
 
-function handleToggleButton() {
+function handleToggleStreamingButton() {
   stateRofl.isStreaming = !stateRofl.isStreaming;
   this.textContent = stateRofl.isStreaming ? "Stop" : "Start";
+}
+
+function handleToggleRenderSmoothButton() {
+  if (!stateRofl.isRenderSmooth) {
+    stateRofl.isRenderSmooth = true;
+    stateRofl.selectedRender = renderSmooth;
+    this.textContent = "Turn Smooth Rendering Off";
+  } else {
+    stateRofl.isRenderSmooth = false;
+    stateRofl.selectedRender = renderFlash;
+    this.textContent = "Turn Smooth Rendering On";
+  }
 }
 
 async function initializeWebcam() {
@@ -305,29 +423,9 @@ function sendFrames() {
 function renderFrames() {
   if (!stateRofl.isRendering) {
     stateRofl.isRendering = true;
-    let lastRenderTime = Date.now();
-    const render = () => {
-      const now = Date.now();
-      const fps = calculateFPS();
-      const interval = fps > 0 ? 1000 / fps : 1000 / FRAME_RATE;
-      if (
-        (frameQueue.length > 0 && now - lastRenderTime >= interval) ||
-        frameQueue.length > 8 ||
-        (frameQueue.length > 0 && now - lastRenderTime >= 1000)
-      ) {
-        const img = frameQueue.shift();
-        processedCtx.drawImage(
-          img,
-          0,
-          0,
-          processedCanvas.width,
-          processedCanvas.height
-        );
-        lastRenderTime = now;
-      }
-      requestAnimationFrame(render);
-    };
-    render();
+    lastRenderTime = Date.now();
+
+    stateRofl.selectedRender();
   }
 }
 
@@ -353,7 +451,7 @@ function calculateFPS() {
   while (frameTimestamps.length > 0 && frameTimestamps[0] < cutoff) {
     frameTimestamps.shift();
   }
-  const fps = frameTimestamps.length;
+  fps = frameTimestamps.length;
   document.getElementById("fps").innerText = `FPS: ${fps}`;
   document.getElementById(
     "queue"
