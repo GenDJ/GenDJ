@@ -66,6 +66,7 @@ run_gendj() {
         echo "pulling latest updates"
         git pull
         mv .env.example .env
+        # need to move settings into runpod env vars so user can set openai api key to use safety
         sed -i 's/SAFETY=TRUE/SAFETY=FALSE/' .env
         sed -i "s|const WEBSOCKET_URL = \"ws://localhost:8765\";|const WEBSOCKET_URL = \"wss://${RUNPOD_POD_ID}-8765.proxy.runpod.net:8765\";|" ./fe/main.js
         sed -i "s|const PROMPT_ENDPOINT_URL_BASE = \"http://localhost:5556/prompt/\";|const PROMPT_ENDPOINT_URL_BASE = \"https://${RUNPOD_POD_ID}-5556.proxy.runpod.net:5556/prompt/\";|" ./fe/main.js
