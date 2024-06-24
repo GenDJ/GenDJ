@@ -32,8 +32,23 @@ RUN ln -s /usr/bin/python3.10 /usr/bin/python && \
     curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python get-pip.py
 
-RUN python -m venv /venv
-ENV PATH="/venv/bin:$PATH"
+
+RUN git clone https://github.com/GenDJ/GenDJ.git /workspace/GenDJ
+
+COPY ./saved_pipeline /workspace/GenDJ/saved_pipeline
+
+# Verify the presence of .git directory
+RUN ls -al /workspace/GenDJ && ls -al /workspace/GenDJ/.git
+
+# Set working directory to GenDJ
+WORKDIR /workspace/GenDJ
+
+# Install GenDJ requirements
+RUN pip install -r requirements.txt
+RUN chmod +x /run_dockerized.sh
+
+RUN python -m venv /workspace/GenDJ/venv
+ENV PATH="/workspace/GenDJ/venv/bin:$PATH"
 
 # Install necessary Python packages
 RUN pip install --upgrade --no-cache-dir pip && \
@@ -46,6 +61,8 @@ RUN pip install --upgrade --no-cache-dir jupyterlab ipywidgets jupyter-archive j
 RUN pip install notebook==6.5.5
 RUN jupyter contrib nbextension install --user && \
     jupyter nbextension enable --py widgetsnbextension
+
+WORKDIR /
 
 # NGINX Proxy
 COPY --from=proxy nginx.conf /etc/nginx/nginx.conf
@@ -63,23 +80,5 @@ RUN chmod +x /pre_start.sh
 RUN chmod +x /start.sh
 RUN chmod +x /post_start.sh
 
-RUN git clone https://github.com/GenDJ/GenDJ.git /workspace/GenDJ
-
-COPY ./saved_pipeline /workspace/GenDJ/saved_pipeline
-
-# Verify the presence of .git directory
-RUN ls -al /workspace/GenDJ && ls -al /workspace/GenDJ/.git
-
-# Set working directory to GenDJ
-WORKDIR /workspace/GenDJ
-
-# Install GenDJ requirements
-RUN pip install -r requirements.txt
-
-# Extras
-# RUN /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-# ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
-# # RUN brew update && brew install pyenv
-# RUN brew tap filebrowser/tap && brew install filebrowser
 
 CMD [ "/start.sh" ]

@@ -2,7 +2,7 @@
 set -e  # Exit the script if any statement returns a non-true return value
 
 # Path to the virtual environment
-VENV_PATH="/venv"
+VENV_PATH="/workspace/GenDJ/venv"
 
 # ---------------------------------------------------------------------------- #
 #                          Function Definitions                                #
@@ -69,7 +69,9 @@ run_gendj() {
         sed -i 's/SAFETY=TRUE/SAFETY=FALSE/' .env
         sed -i "s|const WEBSOCKET_URL = \"ws://localhost:8765\";|const WEBSOCKET_URL = \"wss://${RUNPOD_POD_ID}-8765.proxy.runpod.net:8765\";|" ./fe/main.js
         sed -i "s|const PROMPT_ENDPOINT_URL_BASE = \"http://localhost:5556/prompt/\";|const PROMPT_ENDPOINT_URL_BASE = \"https://${RUNPOD_POD_ID}-5556.proxy.runpod.net:5556/prompt/\";|" ./fe/main.js
-        "${VENV_PATH}/bin/python" gendj.py
+        
+        # Run the script to start GenDJ
+        ./run_dockerized.sh
     fi
 }
 
