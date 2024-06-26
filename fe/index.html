@@ -122,6 +122,14 @@
           flex-direction: column;
           align-items: center;
         }
+        
+        .horizontal > canvas {
+          max-width: 512px;
+        }
+
+        canvas {
+          max-width: 300px;
+        }
       }
 
       .feeds {
@@ -161,8 +169,9 @@
           <span id="fps">Fps: 0</span>
           <span id="queue">Queue Size: 0</span>
         </div>
-        <button id="toggleRenderSmooth" class="btn btn-secondary">Turn Smooth Rendering On</button>
-
+        <button id="toggleRenderSmooth" class="btn btn-secondary">
+          Turn Smooth Rendering On
+        </button>
       </div>
 
       <select id="promptLibrary">
