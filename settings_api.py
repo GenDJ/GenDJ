@@ -1,14 +1,15 @@
 import threading
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+import aiofiles
 
 import time
 import json
 
 from safety_checker import SafetyChecker
-
 
 class SettingsAPI:
     def __init__(self, settings):
@@ -28,7 +29,14 @@ class SettingsAPI:
 
         app = FastAPI()
 
-        app.mount("/fe", StaticFiles(directory="fe"), name="fe")
+        app.mount("/", StaticFiles(directory="fe", html=True), name="static")
+
+        # Serve index.html at the root URL
+        @app.get("/", response_class=HTMLResponse)
+        async def root():
+            async with aiofiles.open("fe/index.html", mode="r") as file:
+                content = await file.read()
+            return HTMLResponse(content=content)
 
         # Add CORS middleware
         app.add_middleware(
