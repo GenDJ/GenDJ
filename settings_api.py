@@ -29,13 +29,6 @@ class SettingsAPI:
 
         app = FastAPI()
 
-        # Serve index.html at the root URL
-        @app.get("/", response_class=HTMLResponse)
-        async def root():
-            async with aiofiles.open("fe/index.html", mode="r") as file:
-                content = await file.read()
-            return HTMLResponse(content=content)
-
         # Add CORS middleware
         app.add_middleware(
             CORSMiddleware,
@@ -127,6 +120,8 @@ class SettingsAPI:
             self.settings.opacity = value
             print("Updated opacity:", self.settings.opacity)
             return {"status": "updated"}
+        
+        app.mount("/", StaticFiles(directory="fe", html=True), name="static")
 
         config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
         self.server = uvicorn.Server(config=config)
@@ -134,8 +129,6 @@ class SettingsAPI:
             self.server.run()
         except KeyboardInterrupt:
             pass
-
-        app.mount("/", StaticFiles(directory="fe", html=True), name="static")
 
     def close(self):
         print("SettingsAPI closing")
