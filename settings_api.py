@@ -29,8 +29,6 @@ class SettingsAPI:
 
         app = FastAPI()
 
-        app.mount("/", StaticFiles(directory="fe", html=True), name="static")
-
         # Serve index.html at the root URL
         @app.get("/", response_class=HTMLResponse)
         async def root():
@@ -136,6 +134,8 @@ class SettingsAPI:
             self.server.run()
         except KeyboardInterrupt:
             pass
+
+        app.mount("/", StaticFiles(directory="fe", html=True), name="static")
 
     def close(self):
         print("SettingsAPI closing")

@@ -139,3 +139,4 @@ dmypy.json
 output_image.jpg
 notes.txt
 saved_pipeline/*
+manual_pipeline/*
