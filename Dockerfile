@@ -1,5 +1,5 @@
 # Import necessary base images
-FROM nvidia/cuda:11.8.0-base-ubuntu22.04 as runtime
+FROM nvidia/cuda:12.1.0-devel-ubuntu22.04 as runtime
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -32,35 +32,31 @@ RUN ln -s /usr/bin/python3.10 /usr/bin/python && \
     curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python get-pip.py
 
-
 RUN git clone https://github.com/GenDJ/GenDJ.git /workspace/GenDJ
 
 COPY ./saved_pipeline /workspace/GenDJ/saved_pipeline
 
-# Verify the presence of .git directory
-RUN ls -al /workspace/GenDJ && ls -al /workspace/GenDJ/.git
-
-# Set working directory to GenDJ
+# Set up GenDJ environment
 WORKDIR /workspace/GenDJ
+RUN python -m venv /workspace/GenDJ/venv
+ENV GENDJ_VIRTUAL_ENV=/workspace/GenDJ/venv
+RUN . $GENDJ_VIRTUAL_ENV/bin/activate && \
+    pip install --upgrade --no-cache-dir pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt && \
+    deactivate
 
-# Install GenDJ requirements
-RUN pip install -r requirements.txt
 RUN chmod +x ./run_containerized.sh
 
-RUN python -m venv /workspace/GenDJ/venv
-ENV PATH="/workspace/GenDJ/venv/bin:$PATH"
-
-# Install necessary Python packages
-RUN pip install --upgrade --no-cache-dir pip && \
-    pip install --upgrade setuptools && \
-    pip install --upgrade wheel
-RUN pip install --upgrade --no-cache-dir torch==2.0.1+cu118 torchvision==0.15.2+cu118 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118
-RUN pip install --upgrade --no-cache-dir jupyterlab ipywidgets jupyter-archive jupyter_contrib_nbextensions triton xformers==0.0.22 gdown
-
-# Set up Jupyter Notebook
-RUN pip install notebook==6.5.5
-RUN jupyter contrib nbextension install --user && \
-    jupyter nbextension enable --py widgetsnbextension
+# Set up Jupyter environment
+WORKDIR /workspace
+RUN python -m venv /workspace/jupyter_env
+ENV JUPYTER_VIRTUAL_ENV=/workspace/jupyter_env
+RUN . $JUPYTER_VIRTUAL_ENV/bin/activate && \
+    pip install --upgrade --no-cache-dir pip setuptools wheel && \
+    pip install --no-cache-dir jupyterlab ipywidgets jupyter-archive jupyter_contrib_nbextensions triton notebook==6.5.5 && \
+    jupyter contrib nbextension install --user && \
+    jupyter nbextension enable --py widgetsnbextension && \
+    deactivate
 
 WORKDIR /
 
@@ -79,6 +75,5 @@ COPY --from=scripts post_start.sh /
 RUN chmod +x /pre_start.sh
 RUN chmod +x /start.sh
 RUN chmod +x /post_start.sh
-
 
 CMD [ "/start.sh" ]

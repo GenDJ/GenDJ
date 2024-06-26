@@ -29,16 +29,33 @@ class DiffusionProcessor:
         warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
 
         disable_progress_bar()
-        self.pipe = AutoPipelineForImage2Image.from_pretrained(
-            base_model,
-            torch_dtype=torch.float16,
-            variant="fp16",
-            local_files_only=local_files_only,
-        )
 
-        self.pipe.vae = AutoencoderTiny.from_pretrained(
-            vae_model, torch_dtype=torch.float16, local_files_only=local_files_only
-        )
+        if use_cached:
+            self.pipe = AutoPipelineForImage2Image.from_pretrained(
+                base_model,
+                torch_dtype=torch.float16,
+                variant="fp16",
+                local_files_only=local_files_only,
+            )
+
+            self.pipe.vae = AutoencoderTiny.from_pretrained(
+                vae_model,
+                subfolder="diffusion_pytorch_model.fp16.safetensors",
+                torch_dtype=torch.float16,
+                local_files_only=local_files_only,
+            )
+        else:
+            self.pipe = AutoPipelineForImage2Image.from_pretrained(
+                base_model,
+                torch_dtype=torch.float16,
+                variant="fp16",
+                local_files_only=local_files_only,
+            )
+
+            self.pipe.vae = AutoencoderTiny.from_pretrained(
+                vae_model, torch_dtype=torch.float16, local_files_only=local_files_only
+            )
+
         fix_seed(self.pipe)
 
         print("Model loaded")

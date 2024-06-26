@@ -3,7 +3,6 @@ import threading
 import queue
 import time
 
-
 class ThreadedWorker:
     def __init__(self, has_input=True, has_output=True, mode="thread", debug=False):
         if mode == "thread":
@@ -58,20 +57,20 @@ class ThreadedWorker:
         self.setup()
         try:
             while not self.should_exit:
-
                 cur_time = time.time()
                 if hasattr(self, "input_queue"):
                     try:
                         input = self.input_queue.get(timeout=0.1)
+                        if input is None:
+                            break
+                        start_time = time.time()
+                        result = self.work(input)
                     except queue.Empty:
                         continue
-                    if input is None:
-                        break
-                    start_time = time.time()
-                    result = self.work(input)
                 else:
                     start_time = time.time()
                     result = self.work()
+
                 duration = time.time() - start_time
 
                 if result is not None and hasattr(self, "output_queue"):
@@ -97,4 +96,6 @@ class ThreadedWorker:
         if hasattr(self, "input_queue"):
             self.input_queue.put(None)
         if self.parallel.is_alive():
-            self.parallel.join()
+            self.parallel.join(timeout=5)  # Wait for up to 5 seconds
+            if self.parallel.is_alive():
+                print(f"{self.name} failed to close in time")

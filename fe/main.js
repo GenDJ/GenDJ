@@ -171,7 +171,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       await requestWebcamPermissions();
       await initializeWebcam();
     } catch (error) {
-      console.error("Webcam permissions are required to proceed.");
+      console.error("Webcam permissions are required to proceed.", error);
     }
   }
 

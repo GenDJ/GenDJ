@@ -22,13 +22,16 @@ import asyncio
 import websockets
 import numpy as np
 from turbojpeg import TurboJPEG, TJPF_BGR
-import time
 from threaded_worker import ThreadedWorker
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from PIL import Image
 import signal
 import sys
 import argparse
+import os
+
+from websockets.server import serve
+
 
 class ThreadedWebsocket(ThreadedWorker):
     def __init__(self, settings):
@@ -39,8 +42,11 @@ class ThreadedWebsocket(ThreadedWorker):
         self.batch = []
         self.settings_batch = []
         self.batch_size = settings.batch_size
-        self.loop = None  # Initialize the event loop as None
+        self.loop = None
         self.settings = settings
+        self.server = None
+        self.stop_event = threading.Event()
+        self.cleanup_called = False  # Add this flag
 
     async def handler(self, websocket, path):
         self.websocket = websocket
@@ -81,27 +87,63 @@ class ThreadedWebsocket(ThreadedWorker):
             print("No active WebSocket connection")
 
     def setup(self):
-        self.start_time = time.time()
-        self.frame_number = 0
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        self.server = websockets.serve(self.handler, "0.0.0.0", self.ws_port)
-        self.loop.run_until_complete(self.server)
+        self.server = self.loop.run_until_complete(
+            serve(self.handler, "0.0.0.0", self.ws_port)
+        )
         print(f"WebSocket server started on port {self.ws_port}")
 
     def work(self):
         try:
-            self.loop.run_forever()
-        except KeyboardInterrupt:
-            print("Server interrupted")
-            self.cleanup()
+            self.loop.run_until_complete(self.run_server())
+        except Exception as e:
+            print(f"Error in ThreadedWebsocket work: {e}")
+        finally:
+            self.loop.call_soon_threadsafe(self.cleanup)
+
+    async def run_server(self):
+        while not self.stop_event.is_set():
+            await asyncio.sleep(0.1)
+
+    async def async_cleanup(self):
+        if self.server:
+            self.server.close()
+            await self.server.wait_closed()
+        remaining_tasks = [
+            task
+            for task in asyncio.all_tasks(self.loop)
+            if task is not asyncio.current_task()
+        ]
+        for task in remaining_tasks:
+            task.cancel()
+        await asyncio.gather(*remaining_tasks, return_exceptions=True)
+
+    def stop_loop(self):
+        self.loop.call_soon_threadsafe(self.loop.stop)
 
     def cleanup(self):
-        if self.loop.is_running():
-            self.loop.call_soon_threadsafe(self.loop.stop)
-        if hasattr(self.server, "wait_closed"):
-            self.loop.run_until_complete(self.server.wait_closed())
-        self.loop.close()
+        if self.cleanup_called:
+            return
+        self.cleanup_called = True
+
+        print("ThreadedWebsocket cleanup")
+        if self.loop and not self.loop.is_closed():
+            try:
+                self.stop_loop()
+                future = asyncio.run_coroutine_threadsafe(
+                    self.async_cleanup(), self.loop
+                )
+                try:
+                    future.result(timeout=5)  # Wait for up to 5 seconds
+                except TimeoutError:
+                    print("ThreadedWebsocket async cleanup timed out")
+            except Exception as e:
+                print(f"Error during ThreadedWebsocket async cleanup: {e}")
+            finally:
+                if self.loop and not self.loop.is_closed():
+                    self.loop.close()
+
         print("WebSocket server stopped")
 
     def start(self):
@@ -109,7 +151,9 @@ class ThreadedWebsocket(ThreadedWorker):
         super().start()
 
     def close(self):
-        self.loop.call_soon_threadsafe(self.loop.stop)
+        print("ThreadedWebsocket closing")
+        self.stop_event.set()
+        self.loop.call_soon_threadsafe(self.cleanup)
         super().close()
 
 
@@ -215,20 +259,24 @@ def main():
     # Main program signal handling
     def signal_handler(signal, frame):
         print("Signal received, closing...")
-        settings_api.close()
-        settings_controller.close()
-        display.close()
-        processor.close()
-        receiver.close()
+        components = [display, processor, receiver, settings_controller, settings_api]
 
-        # Wait for all threads to finish
-        # settings_api.join()
-        settings_controller.join()
-        display.join()
-        processor.join()
-        receiver.join()
+        for component in components:
+            component_name = getattr(component, "name", component.__class__.__name__)
+            print(f"Closing {component_name}...")
+            if hasattr(component, "close"):
+                component.close()
 
-        sys.exit(0)
+        # Wait for all components to finish
+        for component in components:
+            if hasattr(component, "parallel"):
+                try:
+                    component.parallel.join(timeout=10)
+                except TimeoutError:
+                    print(f"{component.__class__.__name__} failed to close in time")
+
+        print("All components closed, exiting...")
+        os._exit(0)
 
     # Register signal handlers
     signal.signal(signal.SIGINT, signal_handler)
@@ -241,12 +289,15 @@ def main():
     processor.start()
     receiver.start()
 
+    exit_event = threading.Event()
     try:
-        while True:
-            time.sleep(1)
+        while not exit_event.is_set():
+            exit_event.wait(1)
     except KeyboardInterrupt:
+        pass
+    finally:
+        print("Main loop exiting, closing components...")
         signal_handler(signal.SIGINT, None)
-
 
 if __name__ == "__main__":
     main()

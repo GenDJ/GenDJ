@@ -1,8 +1,9 @@
 #!/bin/bash
 set -e # Exit the script if any statement returns a non-true return value
 
-# Path to the virtual environment
-VENV_PATH="/workspace/GenDJ/venv"
+# Paths to the virtual environments
+GENDJ_VENV_PATH="/workspace/GenDJ/venv"
+JUPYTER_VENV_PATH="/workspace/jupyter_env"
 
 # ---------------------------------------------------------------------------- #
 #                          Function Definitions                                #
@@ -49,8 +50,10 @@ start_jupyter() {
     echo "Starting Jupyter Lab..."
     mkdir -p /workspace &&
       cd / &&
-      nohup "${VENV_PATH}/bin/jupyter" lab --allow-root --no-browser --port=8888 --ip=* --FileContentsManager.delete_to_trash=False --ServerApp.terminado_settings='{"shell_command":["/bin/bash"]}' --ServerApp.token=$JUPYTER_PASSWORD --ServerApp.allow_origin=* --ServerApp.preferred_dir=/workspace &>/jupyter.log &
+      source "${JUPYTER_VENV_PATH}/bin/activate"
+      nohup jupyter lab --allow-root --no-browser --port=8888 --ip=* --FileContentsManager.delete_to_trash=False --ServerApp.terminado_settings='{"shell_command":["/bin/bash"]}' --ServerApp.token=$JUPYTER_PASSWORD --ServerApp.allow_origin=* --ServerApp.preferred_dir=/workspace &>/jupyter.log &
     echo "Jupyter Lab started with token $JUPYTER_PASSWORD"
+    deactivate
   else
     echo "No jupyter lab password, skipping"
   fi
@@ -83,20 +86,25 @@ run_gendj() {
 
     # need to move settings into runpod env vars so user can set openai api key to use safely
     sed -i 's/SAFETY=TRUE/SAFETY=FALSE/' .env
-    sed -i "s|const WEBSOCKET_URL = \"ws://localhost:8765\";|const WEBSOCKET_URL = \"wss://${RUNPOD_POD_ID}-8765.proxy.runpod.net:8765\";|" ./fe/main.js
-    sed -i "s|const PROMPT_ENDPOINT_URL_BASE = \"http://localhost:5556/prompt/\";|const PROMPT_ENDPOINT_URL_BASE = \"https://${RUNPOD_POD_ID}-5556.proxy.runpod.net:5556/prompt/\";|" ./fe/main.js
+    sed -i "s|const WEBSOCKET_URL = \"ws://localhost:8765\";|const WEBSOCKET_URL = \"wss://${RUNPOD_POD_ID}-8766.proxy.runpod.net\";|" ./fe/main.js
+    sed -i "s|const PROMPT_ENDPOINT_URL_BASE = \"http://localhost:5556/prompt/\";|const PROMPT_ENDPOINT_URL_BASE = \"https://${RUNPOD_POD_ID}-5559.proxy.runpod.net/prompt/\";|" ./fe/main.js
 
-    # Run the script to start GenDJ
-    ./run_containerized.sh
-  fi # Closing if statement
-}    # Closing function
+    # Activate GenDJ virtual environment
+    source "${GENDJ_VENV_PATH}/bin/activate"
+    
+    # Run the script to start GenDJ and capture its PID
+    nohup ./run_containerized.sh > gendj.log 2>&1 & 
+    GENDJ_PID=$!
+    echo "GenDJ server started in background with PID: $GENDJ_PID"
+    
+    # Optionally, you can write the PID to a file for future reference
+    # echo $GENDJ_PID > /workspace/GenDJ/gendj.pid
+  fi
+}
 
 # ---------------------------------------------------------------------------- #
 #                               Main Program                                   #
 # ---------------------------------------------------------------------------- #
-
-# Activate the virtual environment
-source "${VENV_PATH}/bin/activate"
 
 start_nginx
 
