@@ -18,7 +18,12 @@ from fixed_size_dict import FixedSizeDict
 
 
 class DiffusionProcessor:
-    def __init__(self, warmup=None, local_files_only=True, use_cached=False):
+    def __init__(
+        self, warmup=None, local_files_only=True, use_cached=False, settings=None
+    ):
+        self.settings = settings
+        print("Settings2:", settings)
+
         if use_cached:
             base_model = "./saved_pipeline/sdxl-turbo"
             vae_model = "./saved_pipeline/taesdxl"
@@ -85,12 +90,20 @@ class DiffusionProcessor:
         self.generator = torch.manual_seed(0)
 
         if warmup:
+            print("Starting warmup")
             warmup_shape = [int(e) for e in warmup.split("x")]
             images = np.zeros(warmup_shape, dtype=np.float32)
             for i in range(2):
                 print(f"Warmup {warmup} {i+1}/2")
                 start_time = time.time()
-                self.run(images, prompt="warmup", num_inference_steps=2, strength=1.0)
+                self.run(
+                    images=images,
+                    prompt=self.settings.prompt,
+                    use_compel=True,
+                    num_inference_steps=2,
+                    strength=0.7,
+                    seed=self.settings.seed,
+                )
                 end_time = time.time()
                 duration = end_time - start_time
                 print(f"Warmup {i+1}/2 took {duration:.2f} seconds", flush=True)
@@ -98,9 +111,13 @@ class DiffusionProcessor:
 
     def embed_prompt(self, prompt):
         if prompt not in self.prompt_cache:
+            start_time = time.time()
             with torch.no_grad():
                 print("embedding prompt", prompt)
                 self.prompt_cache[prompt] = self.compel(prompt)
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            print(f"Time taken to embed the prompt: {elapsed_time:.4f} seconds")
         return self.prompt_cache[prompt]
 
     def meta_embed_prompt(self, prompt):

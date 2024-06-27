@@ -51,10 +51,13 @@ class ThreadedWebsocket(ThreadedWorker):
     async def handler(self, websocket, path):
         self.websocket = websocket
         print("WebSocket connection opened")
+        first_frame = True
         try:
             while True:
                 frame_data = await websocket.recv()
-                print(f"Received frame of size {len(frame_data)} bytes")
+                if first_frame:
+                    print(f"Received frame of size {len(frame_data)} bytes")
+                    first_frame = False
                 frame_data_np = np.frombuffer(frame_data, dtype=np.uint8)
                 frame = self.jpeg.decode(frame_data_np, pixel_format=TJPF_RGB)
                 img = torch.from_numpy(frame).permute(2, 0, 1)
@@ -135,7 +138,7 @@ class ThreadedWebsocket(ThreadedWorker):
                     self.async_cleanup(), self.loop
                 )
                 try:
-                    future.result(timeout=5)  # Wait for up to 5 seconds
+                    future.result(timeout=2)  # Wait for up to 2 seconds
                 except TimeoutError:
                     print("ThreadedWebsocket async cleanup timed out")
             except Exception as e:
@@ -162,6 +165,8 @@ class Processor(ThreadedWorker):
         super().__init__(has_input=True, has_output=True, debug=True)
         self.batch_size = settings.batch_size
         self.settings = settings
+        print("Settings1:", settings)
+
         self.jpeg = TurboJPEG()
         self.use_cached = use_cached
 
@@ -171,7 +176,7 @@ class Processor(ThreadedWorker):
             warmup = self.settings.warmup  # f"{settings.batch_size}x{settings.warmup}"
             print(f"warmup from settings is: {warmup}")
         self.diffusion_processor = DiffusionProcessor(
-            warmup=warmup, use_cached=self.use_cached
+            warmup=warmup, use_cached=self.use_cached, settings=self.settings
         )
         self.clear_input()  # drop old frames
         self.runs = 0
@@ -192,7 +197,6 @@ class Processor(ThreadedWorker):
             result_uint8 = (result * 255).astype(np.uint8)
             result_bytes = self.jpeg.encode(result_uint8, pixel_format=TJPF_RGB)
             self.output_queue.put(result_bytes)
-
         self.runs += 1
         if self.runs < 3:
             print("warming up, dropping old frames")
