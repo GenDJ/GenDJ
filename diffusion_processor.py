@@ -91,6 +91,9 @@ class DiffusionProcessor:
                 print(f"Warmup {warmup} {i+1}/2")
                 start_time = time.time()
                 self.run(images, prompt="warmup", num_inference_steps=2, strength=1.0)
+                end_time = time.time()
+                duration = end_time - start_time
+                print(f"Warmup {i+1}/2 took {duration:.2f} seconds", flush=True)
             print("Warmup finished", flush=True)
 
     def embed_prompt(self, prompt):

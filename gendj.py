@@ -166,7 +166,13 @@ class Processor(ThreadedWorker):
         self.use_cached = use_cached
 
     def setup(self):
-        self.diffusion_processor = DiffusionProcessor(use_cached=self.use_cached)
+        warmup = None
+        if self.settings.warmup:
+            warmup = self.settings.warmup  # f"{settings.batch_size}x{settings.warmup}"
+            print(f"warmup from settings is: {warmup}")
+        self.diffusion_processor = DiffusionProcessor(
+            warmup=warmup, use_cached=self.use_cached
+        )
         self.clear_input()  # drop old frames
         self.runs = 0
 
@@ -298,6 +304,7 @@ def main():
     finally:
         print("Main loop exiting, closing components...")
         signal_handler(signal.SIGINT, None)
+
 
 if __name__ == "__main__":
     main()
