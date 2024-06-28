@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 import aiofiles
+import os
 
 import time
 import json
@@ -121,7 +122,8 @@ class SettingsAPI:
             print("Updated opacity:", self.settings.opacity)
             return {"status": "updated"}
         
-        app.mount("/", StaticFiles(directory="fe", html=True), name="static")
+        if "READY_WEBHOOK_URL" not in os.environ:
+            app.mount("/", StaticFiles(directory="fe", html=True), name="static")
 
         config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
         self.server = uvicorn.Server(config=config)

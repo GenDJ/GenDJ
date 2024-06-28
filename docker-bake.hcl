@@ -1,10 +1,21 @@
 variable "RELEASE" {
-    default = "0.3.0"
+    default = "0.3.3"
 }
 
 target "default" {
     dockerfile = "Dockerfile"
     tags = ["mrassisted/gendj:${RELEASE}"]
+    context = "."
+    contexts = {
+        scripts = "./container-template"
+        proxy = "./container-template/proxy"
+    }
+}
+
+target "networked" {
+    dockerfile = "Dockerfile.networked"
+    tags = ["mrassisted/gendj-networked:${RELEASE}"]
+    context = "."
     contexts = {
         scripts = "./container-template"
         proxy = "./container-template/proxy"

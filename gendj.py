@@ -2,7 +2,6 @@ import time
 import sdl2
 import sdl2.ext
 import numpy as np
-import numpy as np
 import torch
 import torch.nn.functional as F
 from turbojpeg import TurboJPEG, TJPF_RGB
@@ -20,8 +19,6 @@ from image_utils import (
 import threading
 import asyncio
 import websockets
-import numpy as np
-from turbojpeg import TurboJPEG, TJPF_BGR
 from threaded_worker import ThreadedWorker
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from PIL import Image

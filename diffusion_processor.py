@@ -1,8 +1,9 @@
 import re
 import numpy as np
 import time
+import os
 from fixed_seed import fix_seed
-
+import requests
 from sfast.compilers.stable_diffusion_pipeline_compiler import (
     compile,
     CompilationConfig,
@@ -108,6 +109,16 @@ class DiffusionProcessor:
                 duration = end_time - start_time
                 print(f"Warmup {i+1}/2 took {duration:.2f} seconds", flush=True)
             print("Warmup finished", flush=True)
+            if "READY_WEBHOOK_URL" in os.environ:
+                webhook_url = os.environ["READY_WEBHOOK_URL"]
+                try:
+                    response = requests.post(webhook_url, json={"ready": True})
+                    if response.status_code == 200:
+                        print("Successfully notified webhook about readiness.")
+                    else:
+                        print(f"Failed to notify webhook. Status code: {response.status_code}")
+                except Exception as e:
+                    print(f"Error notifying webhook: {e}")
 
     def embed_prompt(self, prompt):
         if prompt not in self.prompt_cache:
