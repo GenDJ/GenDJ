@@ -164,6 +164,8 @@ document
   });
 
 document.addEventListener("DOMContentLoaded", async () => {
+  document.getElementById("prompt").innerText =
+    "a dj sunglasses disco colors vibrant digital illustration HDR talking";
   if (await hasWebcamPermissions()) {
     await initializeWebcam();
   } else {
