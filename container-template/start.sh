@@ -130,7 +130,10 @@ fi
 
 echo "trying to start gendj1212"
 
-run_gendj
+
+if [ -z "$AUTO_RUN" ] || [ "$AUTO_RUN" != "PREVENT" ]; then
+  run_gendj
+fi
 
 echo "Start script(s) finished, pod is ready to use."
 
