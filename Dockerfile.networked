@@ -41,11 +41,11 @@ COPY ./official-templates/stable-diffusion-comfyui/README.md /usr/share/nginx/ht
 
 # Start Scripts
 COPY ./official-templates/stable-diffusion-comfyui/pre_start.sh /pre_start.sh
-COPY --from=scripts start.sh /
+COPY --from=scripts start-networked.sh /
 COPY --from=scripts post_start.sh /
 
 RUN chmod +x /pre_start.sh
-RUN chmod +x /start.sh
+RUN chmod +x /start-networked.sh
 RUN chmod +x /post_start.sh
 
 CMD [ "/start.sh" ]
