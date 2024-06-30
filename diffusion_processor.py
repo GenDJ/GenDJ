@@ -111,8 +111,10 @@ class DiffusionProcessor:
             print("Warmup finished", flush=True)
             if "READY_WEBHOOK_URL" in os.environ:
                 webhook_url = os.environ["READY_WEBHOOK_URL"]
+                pod_id = os.environ["RUNPOD_POD_ID"]
+
                 try:
-                    response = requests.post(webhook_url, json={"ready": True})
+                    response = requests.post(webhook_url, json={"podId": pod_id})
                     if response.status_code == 200:
                         print("Successfully notified webhook about readiness.")
                     else:
