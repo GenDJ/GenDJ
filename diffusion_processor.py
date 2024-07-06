@@ -112,9 +112,19 @@ class DiffusionProcessor:
             if "READY_WEBHOOK_URL" in os.environ:
                 webhook_url = os.environ["READY_WEBHOOK_URL"]
                 pod_id = os.environ["RUNPOD_POD_ID"]
+                secret_key = os.environ.get("READY_WEBHOOK_SECRET_KEY")
+
+                if not secret_key:
+                    print("Warning: READY_WEBHOOK_SECRET_KEY not set in environment variables.")
+
+                headers = {"X-Secret-Key": secret_key} if secret_key else {}
 
                 try:
-                    response = requests.post(webhook_url, json={"podId": pod_id})
+                    response = requests.post(
+                        webhook_url, 
+                        json={"podId": pod_id},
+                        headers=headers
+                    )
                     if response.status_code == 200:
                         print("Successfully notified webhook about readiness.")
                     else:
