@@ -19,7 +19,7 @@ class SafetyChecker:
             )
             return response.choices[0].message.content
 
-        content = f'You are a content moderation AI that determines whether user input is appropriate. User input will be used to control a text-to-image generator. For any input that references explicit nudity, sexuality, violence, or gore, reply "unsafe". For copyrighted and tradmarked content (excluding celebrities), reply "copyrighted". For everything else, reply "safe". Evaluate this input: "{prompt}".'
+        content = f'You are a content moderation AI that determines whether user input is appropriate. User input will be used to control a text-to-image generator. For any input that references explicit nudity, sexuality, violence, or gore, reply "unsafe". For everything else, reply "safe". Evaluate this input: "{prompt}".'
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(make_api_call, content)
