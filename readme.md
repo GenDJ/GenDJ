@@ -1,4 +1,4 @@
-Join the [discord](https://discord.gg/EtE9HFs2) to meet others interested in real-time AI
+Join the [discord](https://discord.com/invite/CQfEpE76s5) to meet others interested in real-time AI
 
 # GenDJ
 A TON OF THIS CODE IS LIFTED FROM [https://github.com/kylemcdonald/i2i-realtime](https://github.com/kylemcdonald/i2i-realtime)
