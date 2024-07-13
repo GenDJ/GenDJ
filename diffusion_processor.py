@@ -158,7 +158,7 @@ class DiffusionProcessor:
         return cond, pool
 
     def run(
-        self, images, prompt, num_inference_steps, strength, use_compel=False, seed=None
+        self, images, prompt, num_inference_steps, strength, use_compel=True, seed=None
     ):
         strength = min(max(1 / num_inference_steps, strength), 1)
         if seed is not None:

@@ -12,12 +12,27 @@ import json
 
 from safety_checker import SafetyChecker
 
+
 class SettingsAPI:
     def __init__(self, settings):
         self.shutdown = False
         self.settings = settings
         port = settings.settings_port
         self.thread = threading.Thread(target=self.run, args=(port,))
+        self.prompt_0 = settings.prompt
+        self.prompt_1 = "A psychedelic landscape."
+        self.blend = 0
+
+    def update_blend(self):
+        if self.blend == 0:
+            self.settings.prompt = self.prompt_0
+        elif self.blend == 1:
+            self.settings.prompt = self.prompt_1
+        else:
+            a = self.prompt_0
+            b = self.prompt_1
+            t = self.blend
+            self.settings.prompt = f'("{a}", "{b}").blend({1-t:.2f}, {t:.2f})'
 
     def start(self):
         print("SettingsAPI starting1212")
@@ -51,9 +66,44 @@ class SettingsAPI:
                     print(f"Ignoring prompt ({safety}):", prompt)
                     return {"safety": "unsafe"}
 
-            self.settings.prompt = prompt
+            self.prompt_0 = prompt
+            self.update_blend()
             print("Updated prompt:", prompt)
             return {"safety": "safe"}
+
+        @app.post("/secondprompt/{msg}")
+        async def secondprompt(msg: str):
+            prompt = msg
+
+            override = "-f" in prompt
+            if override:
+                prompt = prompt.replace("-f", "").strip()
+            if self.settings.safety and not override:
+                safety = safety_checker(prompt)
+                if safety != "safe":
+                    print(f"Ignoring prompt ({safety}):", prompt)
+                    return {"safety": "unsafe"}
+
+            self.prompt_1 = prompt
+            self.update_blend()
+            print("Updated secondprompt:", prompt)
+            return {"safety": "safe"}
+
+        @app.post("/blend/{msg}")
+        async def blend(msg: str):
+            try:
+                blend_value = float(msg)
+                if 0 <= blend_value <= 1:
+                    self.blend = blend_value
+                    self.update_blend()
+                    return {"status": "success", "blend": self.blend}
+                else:
+                    return {
+                        "status": "error",
+                        "message": "Blend value must be between 0 and 1",
+                    }
+            except ValueError:
+                return {"status": "error", "message": "Invalid blend value"}
 
         @app.get("/directory/{status}")
         async def directory(status: str):
@@ -121,7 +171,7 @@ class SettingsAPI:
             self.settings.opacity = value
             print("Updated opacity:", self.settings.opacity)
             return {"status": "updated"}
-        
+
         if "READY_WEBHOOK_URL" not in os.environ:
             app.mount("/", StaticFiles(directory="fe", html=True), name="static")
 
