@@ -1,0 +1,72 @@
+# Import necessary base images
+FROM nvidia/cuda:12.1.0-devel-ubuntu22.04 as runtime
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Set working directory and environment variables
+ENV SHELL=/bin/bash
+ENV PYTHONUNBUFFERED=1
+ENV DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /
+
+# Set up system
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+    make build-essential libssl-dev zlib1g-dev \
+    libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
+    libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev \
+    liblzma-dev python3-openssl git libturbojpeg \
+    libgl1 software-properties-common openssh-server nginx rsync && \
+    add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get install -y --no-install-recommends python3.10-dev python3.10-venv && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+
+# Set up Python and pip
+RUN ln -s /usr/bin/python3.10 /usr/bin/python && \
+    rm /usr/bin/python3 && \
+    ln -s /usr/bin/python3.10 /usr/bin/python3 && \
+    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python get-pip.py
+
+# Clone and set up GenDJ
+RUN git clone https://github.com/GenDJ/GenDJ.git /workspace/GenDJ
+
+COPY ./saved_pipeline /workspace/GenDJ/saved_pipeline
+
+# Set up GenDJ environment
+WORKDIR /workspace/GenDJ
+RUN python -m venv /workspace/GenDJ/venv
+ENV GENDJ_VIRTUAL_ENV=/workspace/GenDJ/venv
+RUN . $GENDJ_VIRTUAL_ENV/bin/activate && \
+    pip install --upgrade --no-cache-dir pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt && \
+    deactivate
+
+RUN chmod +x ./run_containerized.sh
+
+# Install RunPod Python SDK
+RUN python -m pip install runpod
+
+# Create a health check server
+RUN mkdir -p /workspace/healthcheck
+WORKDIR /workspace/healthcheck
+
+RUN echo 'import http.server\nimport socketserver\n\nclass HealthCheckHandler(http.server.SimpleHTTPRequestHandler):\n    def do_GET(self):\n        if self.path == "/readyz":\n            self.send_response(200)\n            self.send_header("Content-type", "text/plain")\n            self.end_headers()\n            self.wfile.write(b"OK")\n        else:\n            self.send_response(404)\n            self.send_header("Content-type", "text/plain")\n            self.end_headers()\n            self.wfile.write(b"Not Found")\n\ndef run_server():\n    with socketserver.TCPServer(("", 8080), HealthCheckHandler) as httpd:\n        print("Health check server running at port 8080")\n        httpd.serve_forever()\n\nif __name__ == "__main__":\n    run_server()' > health_check_server.py
+
+RUN echo '#!/bin/bash\npython /workspace/healthcheck/health_check_server.py &\npython -u /workspace/handler.py' > /workspace/start.sh
+RUN chmod +x /workspace/start.sh
+
+# Copy the handler script
+COPY ./handler.py /workspace/handler.py
+
+WORKDIR /workspace
+
+# Expose the WebSocket port for GenDJ
+EXPOSE 8888
+
+# Start the serverless handler
+CMD ["/workspace/start.sh"] 

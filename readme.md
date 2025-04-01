@@ -101,13 +101,66 @@ pip install -r requirements.txt
 10. download the models
 `python download-models.py`
 
-# Containerizing
+# Containerizing for RunPod Serverless (Remote Build)
 
-To download models locally, `python cache-models.py` and for some reason I then had to manually download `diffusion_pytorch_model.bin` and `diffusion_pytorch_model.safetensors` from https://huggingface.co/madebyollin/taesdxl/tree/main for taesdxl 
+This project includes a script (`build_on_runpod.py`) to automate building the serverless Docker image on a temporary RunPod GPU instance.
 
-Then update the version in docker-bake.hcl and build/push with `docker buildx bake --push`
+**Prerequisites:**
 
-When containerized it then runs via `run_containerized.sh` so that it uses the cached models in `./saved_pipeline`
+*   Python 3 installed locally.
+*   RunPod Account and API Key.
+*   Docker Hub Account (or other container registry) and an Access Token (recommended over password).
+*   SSH client configured locally (script defaults to using `~/.ssh/id_rsa`, ensure the corresponding public key is added to RunPod).
+
+**Steps:**
+
+1.  **Install Build Script Dependencies (Locally):**
+    ```bash
+    # Optional: Create and activate a virtual environment
+    # python3 -m venv venv_builder
+    # source venv_builder/bin/activate
+
+    pip install -r requirements-builder.txt
+    ```
+
+2.  **Configure Build Environment (`.env.remote-builder`):**
+    *   Copy the example file: `cp .env.remote-builder .env.remote-builder`
+    *   Edit `.env.remote-builder` and fill in **ALL** values:
+        *   `RUNPOD_IP`: The IP of a **temporary, running** RunPod GPU pod (use a template with Docker, e.g., "RunPod Pytorch").
+        *   `RUNPOD_SSH_PORT`: The SSH port for the temporary pod.
+        *   `RUNPOD_SSH_USER`: Usually `root`.
+        *   `RUNPOD_SSH_KEY_PATH`: (Optional) Path to your local private SSH key (e.g., `~/.ssh/id_rsa`). If not provided or invalid, you might be prompted for a password.
+        *   `DOCKER_USERNAME`: Your Docker Hub username.
+        *   `DOCKER_PASSWORD`: Your Docker Hub access token (recommended) or password.
+        *   `DOCKER_IMAGE_NAME`: Desired image name (e.g., `yourusername/gendj-serverless`).
+        *   `DOCKER_IMAGE_TAG`: Desired image tag (e.g., `0.3.5`).
+
+3.  **Run the Remote Build Script:**
+    *   Make sure the temporary RunPod pod specified in `.env.remote-builder` is **running**.
+    *   Execute the script:
+        ```bash
+        chmod +x build_on_runpod.py
+        ./build_on_runpod.py
+        # Or: python build_on_runpod.py
+        ```
+    *   The script will:
+        *   Connect to the RunPod instance.
+        *   Upload project files.
+        *   Run `cache-models.py` remotely to download and save models into `./saved_pipeline` on the pod.
+        *   Verify the required model files exist.
+        *   If successful, build the Docker image using `Dockerfile.serverless`.
+        *   Push the built image to your Docker registry.
+        *   Clean up temporary files.
+
+4.  **Verify Push:** Check your Docker Hub (or other registry) to confirm the image (`yourusername/gendj-serverless:0.3.5`) was pushed successfully.
+
+5.  **Terminate Build Pod:** Once the image is pushed, you can safely terminate the temporary RunPod pod used for building.
+
+6.  **Deploy to RunPod Serverless:** Use the pushed image name and tag when creating your RunPod Serverless endpoint.
+
+# Using the Serverless Endpoint
+
+See `README-SERVERLESS.md` for instructions on how to deploy the built image to a RunPod Serverless endpoint and how to use the `client-example.py` or `test_frontend_serverless.py` scripts to interact with it.
 
 # ETC
 

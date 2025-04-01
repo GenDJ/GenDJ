@@ -1,0 +1,83 @@
+version: 0.2
+
+env:
+  # Reference the secret stored in AWS Secrets Manager
+  secrets-manager:
+    DOCKERHUB_USERNAME: DockerHubCredentialsForGenDJ:DOCKERHUB_USERNAME # SecretName:JSONKey
+    DOCKERHUB_PASSWORD: DockerHubCredentialsForGenDJ:DOCKERHUB_PASSWORD # SecretName:JSONKey
+  # Define variables for the image name and tag
+  variables:
+    IMAGE_REPO_NAME: "your-dockerhub-username/gendj-serverless" # <-- CHANGE to your DockerHub username/repo
+    IMAGE_TAG: "latest" # Or use $CODEBUILD_RESOLVED_SOURCE_VERSION for commit hash tag
+
+phases:
+  install:
+    # runtime-versions: # Optional: Specify if needed and supported by the image
+    #   python: 3.10
+    commands:
+      - echo "--- Install Phase ---"
+      - echo "Checking system info..."
+      - nvidia-smi || echo "nvidia-smi not found or failed (Might be okay if drivers load later)"
+      - python --version
+      - pip --version
+      - echo "Installing Python dependencies from requirements.txt..."
+      # Ensure pip uses cache for potentially faster builds
+      - pip install --cache-dir .pip-cache -r requirements.txt
+  pre_build:
+    commands:
+      - echo "--- Pre-Build Phase ---"
+      - echo "Running model caching script (cache-models.py)..."
+      # Run the caching script; fail the build if it exits non-zero
+      - python cache-models.py
+      - echo "Verifying cached model files..."
+      # List of essential files expected after caching
+      # Make sure this list aligns with your script's expectations!
+      - |
+        EXPECTED_FILES=(
+          "saved_pipeline/taesdxl/config.json"
+          "saved_pipeline/taesdxl/diffusion_pytorch_model.safetensors"
+          "saved_pipeline/taesdxl/diffusion_pytorch_model.bin"
+          "saved_pipeline/sdxl-turbo/model_index.json"
+          "saved_pipeline/sdxl-turbo/config.json"
+          "saved_pipeline/sdxl-turbo/vae/config.json"
+          "saved_pipeline/sdxl-turbo/unet/config.json"
+          "saved_pipeline/sdxl-turbo/text_encoder/config.json"
+          "saved_pipeline/sdxl-turbo/text_encoder_2/config.json"
+          "saved_pipeline/sdxl-turbo/scheduler/scheduler_config.json"
+          "saved_pipeline/sdxl-turbo/tokenizer/tokenizer_config.json"
+          "saved_pipeline/sdxl-turbo/tokenizer_2/tokenizer_config.json"
+        )
+        MISSING=0
+        for f in "${EXPECTED_FILES[@]}"; do
+          if [ ! -f "$f" ]; then
+            echo "Error: Missing required cached file: $f"
+            MISSING=1
+          else
+            echo "Verified: $f"
+          fi
+        done
+        if [ "$MISSING" -ne 0 ]; then
+          echo "Aborting build due to missing cached files."
+          exit 1
+        fi
+      - echo "Logging in to Docker Hub..."
+      # Use the credentials fetched from Secrets Manager
+      - echo $DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USERNAME --password-stdin
+  build:
+    commands:
+      - echo "--- Build Phase ---"
+      - echo "Building Docker image: $IMAGE_REPO_NAME:$IMAGE_TAG"
+      # Build the Docker image using Dockerfile.serverless
+      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG -f Dockerfile.serverless .
+  post_build:
+    commands:
+      - echo "--- Post-Build Phase ---"
+      - echo "Pushing Docker image to Docker Hub: $IMAGE_REPO_NAME:$IMAGE_TAG"
+      # Push the built image
+      - docker push $IMAGE_REPO_NAME:$IMAGE_TAG
+      - echo "Build and push completed successfully."
+
+# Optional: Define artifacts if you need to store anything from the build
+# artifacts:
+#   files:
+#     - '**/*'
