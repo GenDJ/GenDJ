@@ -21,3 +21,9 @@ target "networked" {
         proxy = "./container-template/proxy"
     }
 }
+
+target "serverless" {
+    dockerfile = "Dockerfile.serverless"
+    tags = ["mrassisted/gendj-serverless:${RELEASE}"]
+    context = "."
+}

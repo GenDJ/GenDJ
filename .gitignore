@@ -117,6 +117,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.env.remote-builder
+.env.aws-setup
 
 # Spyder project settings
 .spyderproject
@@ -142,3 +144,5 @@ saved_pipeline/*
 manual_pipeline/*
 2venv
 3venv
+
+venv_builder

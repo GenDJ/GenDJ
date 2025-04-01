@@ -1,0 +1,25 @@
+name: gendj-serverless
+version: 1.0.0
+image:
+  name: mrassisted/gendj-serverless
+  tag: latest
+handler: handler
+ports:
+  - 8888:8888/tcp
+healthCheck:
+  type: http
+  protocol: http
+  port: 8080
+  path: /readyz
+resources:
+  gpu:
+    count: 1
+    type: "NVIDIA RTX A5000"
+  memory:
+    min: 16GB
+    recommended: 24GB
+concurrency: 1
+timeout: 3600
+env:
+  PYTHON_PATH: "/workspace/GenDJ"
+  PYTHONUNBUFFERED: "1" 
