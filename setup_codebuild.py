@@ -238,15 +238,14 @@ def create_codebuild_project(codebuild, config, service_role_arn):
 
     project_definition = {
         'name': config['CODEBUILD_PROJECT_NAME'],
-        'description': 'Builds the GenDJ serverless Docker image using GPU',
+        'description': 'Builds the GenDJ serverless Docker image using GPU (Manual Trigger Only)',
         'source': {
             'type': config['SOURCE_REPO_TYPE'],
             'location': config['SOURCE_REPO_URL'],
             'buildspec': 'buildspec.yml', # Assumes buildspec.yml in root
-            # Set insecureSsl to True if using self-signed certs (e.g., some Git servers)
-            # 'insecureSsl': False, 
-            # Report build status back to source provider (e.g., GitHub checks)
-            'reportBuildStatus': True, 
+            # 'gitCloneDepth': 1, # Optional: for faster clones if history not needed
+            # 'reportBuildStatus': True, # Reports status to GitHub/etc. - Keep if desired
+            # No 'triggers' key means manual builds only by default
         },
         'artifacts': {'type': 'NO_ARTIFACTS'}, # We push to Docker Hub, no build artifacts needed
         'environment': {
@@ -352,13 +351,11 @@ def main():
                  print("   ensure the connection to GitHub is authorized (you might need to click 'Connect using OAuth').")
             elif config['SOURCE_REPO_TYPE'] == 'BITBUCKET':
                  print("2. Source Section: Ensure connection to Bitbucket is authorized.")
-            # Add similar instructions for other providers if needed
             print("3. IAM Console -> Roles -> Find your CodeBuild role:")
             print(f"   '{config['CODEBUILD_SERVICE_ROLE_NAME']}'")
             print("   Review attached policies. Consider replacing 'CloudWatchLogsFullAccess'")
             print("   with a more restrictive policy allowing writes only to the specific log group if desired.")
-            print("4. CodeBuild Project -> Build details -> Start build (to trigger the first build manually).")
-            print("5. (Optional) CodeBuild Project -> Edit -> Build triggers -> Set up webhooks for automatic builds on push.")
+            print("4. CodeBuild Project -> Build details -> Start build (to trigger the build manually). Builds will ONLY run when started manually.")
             print("\nFor Security: Consider removing DOCKERHUB_PASSWORD from your .env file now.")
             sys.exit(0)
         else:
