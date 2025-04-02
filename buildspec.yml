@@ -11,22 +11,24 @@ env:
 
 phases: # Top level key
   install: # Level 1 dictionary key under phases
+    runtime-versions:
+      python: 3.10 # Explicitly request Python 3.10
     commands: # Level 2 list key under install
       - echo "--- Install Phase ---"
       - echo "Checking system info..."
       - nvidia-smi || echo "nvidia-smi not found or failed (Might be okay)"
-      - python --version || python3 --version || echo "Python not found"
+      - python --version # Should now show 3.10 after runtime install
       - pip --version || pip3 --version || echo "Pip not found"
       - echo "Installing Python dependencies from requirements.txt..."
-      # Use pip3 if python/pip map to python2 on the build image
+      # Now pip should be using the requested Python 3.10
       - pip install --cache-dir .pip-cache -r requirements.txt || pip3 install --cache-dir .pip-cache -r requirements.txt
 
   pre_build: # Level 1 dictionary key under phases
     commands: # Level 2 list key under pre_build
       - echo "--- Pre-Build Phase ---"
       - echo "Running model caching script (cache-models.py)..."
-      # Use python3 if needed; exit on failure
-      - python cache-models.py || python3 cache-models.py || (echo "Model caching script failed!" && exit 1)
+      # Use the installed Python 3.10
+      - python cache-models.py || (echo "Model caching script failed!" && exit 1)
       - echo "Verifying cached model files (individual checks)..."
       # --- Individual File Checks ---
       - test -f "saved_pipeline/taesdxl/config.json" || (echo "Missing taesdxl/config.json" && exit 1)
