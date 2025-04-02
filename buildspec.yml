@@ -31,8 +31,10 @@ phases: # Top level key
       # Use python3 if needed
       - python cache-models.py || python3 cache-models.py
       - echo "Verifying cached model files..."
-      # List of essential files expected after caching
+      # Step 1: Define the verification logic in a script block
       - |
+        #!/bin/bash
+        set -e # Exit immediately if a command exits with a non-zero status.
         EXPECTED_FILES=(
           "saved_pipeline/taesdxl/config.json"
           "saved_pipeline/taesdxl/diffusion_pytorch_model.safetensors"
@@ -54,7 +56,7 @@ phases: # Top level key
             echo "Error: Missing required cached file: $f"
             MISSING=1
           else
-            : # File found, do nothing verbose
+            echo "Verified: $f" # Added back for clarity during this test
           fi
         done
         if [ "$MISSING" -ne 0 ]; then
@@ -63,6 +65,7 @@ phases: # Top level key
         else
            echo "All expected cached files verified successfully."
         fi
+      # Step 2: Log in to Docker Hub (Now clearly a separate command)
       - echo "Logging in to Docker Hub..."
       # Use the credentials fetched from Secrets Manager
       # Ensure DOCKERHUB_USERNAME and DOCKERHUB_PASSWORD vars are correctly populated by env.secrets-manager
