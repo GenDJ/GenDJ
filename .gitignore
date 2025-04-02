@@ -111,6 +111,7 @@ celerybeat-schedule
 # Environments
 .env
 !.env.example
+.env.frontend-test
 .venv
 env/
 venv/
@@ -147,3 +148,4 @@ manual_pipeline/*
 3venv
 
 venv_builder
+venv_frontend_test

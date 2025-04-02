@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GenDJ.com</title>
+    <style>
+      :root {
+        --primary-color: #4a90e2;
+        --secondary-color: #2c3e50;
+        --background-color: #121212;
+        --surface-color: #1e1e1e;
+        --text-color: #e0e0e0;
+        --accent-color: #ff4081;
+      }
+
+      body {
+        background-color: var(--background-color);
+        color: var(--text-color);
+        font-family: "Roboto", Arial, sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .container {
+        max-width: 800px;
+        width: 100%;
+        background-color: var(--surface-color);
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        padding: 30px;
+        margin-bottom: 20px;
+      }
+
+      h1 {
+        color: var(--primary-color);
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .btn {
+        background-color: var(--primary-color);
+        color: var(--text-color);
+        border: none;
+        padding: 12px 20px;
+        margin-bottom: 12px;
+        margin-top: 12px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background-color 0.3s ease, transform 0.1s ease;
+      }
+
+      .btn:hover {
+        background-color: #3a7bd5;
+        transform: translateY(-2px);
+      }
+
+      .btn:active {
+        transform: translateY(0);
+      }
+
+      .btn-secondary {
+        background-color: var(--secondary-color);
+      }
+
+      .btn-secondary:hover {
+        background-color: #34495e;
+      }
+
+      select,
+      textarea,
+      input {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #4a4a4a;
+        border-radius: 5px;
+        font-size: 16px;
+        background-color: var(--surface-color);
+        color: var(--text-color);
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 100px;
+      }
+
+      #diagnostics {
+        background-color: #2c2c2c;
+        color: var(--text-color);
+        padding: 20px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+      }
+
+      canvas {
+        width: 100%;
+        max-width: 512px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        margin-bottom: 20px;
+      }
+
+      #fps,
+      #queue {
+        display: inline-block;
+        margin-right: 20px;
+        font-weight: bold;
+      }
+
+      @media (max-width: 600px) {
+        .container {
+          padding: 20px;
+        }
+        
+        .horizontal > canvas {
+          max-width: 512px;
+        }
+
+        canvas {
+          max-width: 300px;
+        }
+      }
+
+      .feeds {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .feeds.horizontal {
+        flex-direction: row-reverse;
+      }
+
+      .feeds.horizontal > canvas {
+        width: 50%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>GenDJ.com</h1>
+
+      <button id="toggleDiagnostics" class="btn btn-secondary">
+        Show Options
+      </button>
+      <div id="diagnostics" style="display: none">
+        <p>Select webcam</p>
+        <select id="deviceList"></select>
+        <p>Drop every nth frame (helps slower graphics cards)</p>
+        <select id="frameDrop">
+          <option value="none">None</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select>
+        <div>
+          <span id="fps">Fps: 0</span>
+          <span id="queue">Queue Size: 0</span>
+        </div>
+        <button id="toggleRenderSmooth" class="btn btn-secondary">
+          Turn Smooth Rendering On
+        </button>
+      </div>
+
+      <select id="promptLibrary">
+        <option value="">Select an art style...</option>
+        <option
+          value="a super cool dj wearing headphones, rose tinted aviator sunglasses, disco colors vibrant indoors digital illustration HDR talking"
+        >
+          DJ disco illustration
+        </option>
+        <option
+          value="an illustration of a cyborg, cyberpunk, futuristic, glowing eyes, hdr, ray tracing, bionic, metal skin, masterpiece, high resolution, computer generated"
+        >
+          Cyberpunk mechanical person
+        </option>
+        <option
+          value="an illustration of a super happy very happy person smiling joyful joyous"
+        >
+          Happy
+        </option>
+        <option
+          value="an illustration of a sad super sad person tragic frowning saddest"
+        >
+          Sad
+        </option>
+        <option
+          value="an illustration of an old grey hair person super old aged oldest"
+        >
+          Old
+        </option>
+        <option
+          value="8-bit 8bit pixel art, retro gaming style, vibrant colors, low resolution, blocky shapes, blocky"
+        >
+          Pixel art
+        </option>
+        <option
+          value="8-bit pixel art of a medieval castle with dragons, retro gaming style, vibrant colors, low resolution, blocky shapes"
+        >
+          Pixel art medieval castle
+        </option>
+        <option
+          value="a painting of waves, ocean waves, painted, brush strokes, painting, ocean, water, rich blue colors"
+        >
+          Ocean waves
+        </option>
+        <option
+          value="Vaporwave aesthetic digital collage, retro 80s and 90s symbols, pastel colors, glitch effects, geometric shapes"
+        >
+          Vaporwave digital collage
+        </option>
+        <option
+          value="an illustration of a marble statue, person made of marble, stone, carved, white marble"
+        >
+          Marble statue
+        </option>
+        <option
+          value="Art Nouveau style illustration of a mermaid, flowing organic lines, pastel colors, intricate floral patterns, Alphonse Mucha inspired"
+        >
+          Art Nouveau mermaid
+        </option>
+        <option
+          value="Isometric low-poly 3D render of a colorful candy world, pastel colors, geometric shapes, soft shadows, miniature scale"
+        >
+          Low-poly candy world
+        </option>
+        <option
+          value="Dark gothic charcoal sketch of a haunted Victorian mansion, high contrast, rough textures, eerie atmosphere, Tim Burton inspired"
+        >
+          Gothic charcoal haunted mansion
+        </option>
+        <option
+          value="Surrealist digital painting of impossible architecture, M.C. Escher inspired, optical illusions, muted colors, dreamlike quality"
+        >
+          Surrealist impossible architecture
+        </option>
+        <option
+          value="an anime illustration of a magical character, soft pastel colors, dynamic pose, sparkles, magical, illustrated, anime, animated, drawn"
+        >
+          Anime magic
+        </option>
+        <option
+          value="an illustration of a dog, dog, dog ears, whiskers, fur, colorful, doggy, puppy, dog face, a dog wearing glasses, fur, woof, barking, animal, canine, dog, illustrated dog, dog illustration"
+        >
+          Doggy
+        </option>
+      </select>
+      <textarea id="prompt" placeholder="Enter prompt..." rows="4"></textarea>
+
+      <input
+        type="text"
+        placeholder="Post text, appended to all prompts. Helps to describe yourself"
+        id="postText"
+      />
+
+      <button id="send" class="btn">Submit prompt</button>
+      <button id="toggleStreaming" class="btn btn-secondary">Start</button>
+      <button id="position" class="btn btn-secondary">Toggle Position</button>
+    </div>
+
+    <div id="feedContainer" class="container feeds horizontal">
+      <canvas id="processedCanvas" width="512" height="512"></canvas>
+      <canvas id="croppedCanvas" width="512" height="512"></canvas>
+    </div>
+
+    <script src="imagecapture.min.js"></script>
+    <script src="mainServerless.js"></script>
+  </body>
+</html>

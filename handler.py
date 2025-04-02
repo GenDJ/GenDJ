@@ -17,13 +17,16 @@ class GenDJService:
         
     def start(self):
         # Start the GenDJ service
-        cmd = ["bash", "/workspace/GenDJ/run_containerized.sh"]
+        gendj_dir = "/workspace/GenDJ"
+        cmd = ["bash", "./run_containerized.sh"] # Use relative path now
+        print(f"Starting GenDJ service in {gendj_dir} with command: {' '.join(cmd)}")
         self.process = subprocess.Popen(
             cmd, 
             stdout=subprocess.PIPE, 
             stderr=subprocess.STDOUT,
             text=True,
-            bufsize=1
+            bufsize=1,
+            cwd=gendj_dir # Set the working directory
         )
         
         # Read output in a separate thread
