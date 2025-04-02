@@ -271,11 +271,13 @@ def create_codebuild_project(codebuild, config, service_role_arn):
         if e.response['Error']['Code'] == 'ResourceAlreadyExistsException':
             print(f"CodeBuild project '{config['CODEBUILD_PROJECT_NAME']}' already exists. Attempting update...")
             try:
-                # Remove name for update, use it as identifier
+                # Keep name for update, use it as identifier
                 update_definition = project_definition.copy()
-                del update_definition['name'] 
-                del update_definition['tags'] # Tags cannot be updated here
+                # Tags usually can't be updated here, or need separate calls
+                if 'tags' in update_definition: 
+                    del update_definition['tags'] 
                 
+                # The name parameter IS required for update_project
                 response = codebuild.update_project(**update_definition)
                 print(f"Successfully submitted request to update CodeBuild project '{config['CODEBUILD_PROJECT_NAME']}'.")
             except ClientError as e_update:
