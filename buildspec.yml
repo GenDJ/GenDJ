@@ -11,49 +11,25 @@ env:
 
 phases: # Top level key
   install: # Level 1 dictionary key under phases
-    # runtime-versions:
-    #   python: 3.10 # Uncomment if using a CodeBuild image where specific runtime needed
     commands: # Level 2 list key under install
-      - echo "Minimal buildspec test"
+      - echo "--- Install Phase Minimal ---"
+      # We'll add the actual install commands back later if this works
+      - pip --version || pip3 --version || echo "Pip not found"
   pre_build: # Level 1 dictionary key under phases
     commands: # Level 2 list key under pre_build
-      - echo "--- Pre-Build Phase ---" # Level 3 list item
-      # --- Temporarily Commented Out Caching & Verification for YAML Debug ---
-      # - echo "Running model caching script (cache-models.py)..."
-      # - python cache-models.py || python3 cache-models.py
-      # - echo "Verifying cached model files (individual checks)..."
-      # - test -f "saved_pipeline/taesdxl/config.json" || (echo "Error: Missing taesdxl/config.json" && exit 1)
-      # - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.safetensors" || (echo "Error: Missing taesdxl/diffusion_pytorch_model.safetensors" && exit 1)
-      # - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.bin" || (echo "Error: Missing taesdxl/diffusion_pytorch_model.bin" && exit 1)
-      # - test -f "saved_pipeline/sdxl-turbo/model_index.json" || (echo "Error: Missing sdxl-turbo/model_index.json" && exit 1)
-      # - test -f "saved_pipeline/sdxl-turbo/config.json" || (echo "Error: Missing sdxl-turbo/config.json" && exit 1)
-      # - test -f "saved_pipeline/sdxl-turbo/vae/config.json" || (echo "Error: Missing sdxl-turbo/vae/config.json" && exit 1)
-      # - test -f "saved_pipeline/sdxl-turbo/unet/config.json" || (echo "Error: Missing sdxl-turbo/unet/config.json" && exit 1)
-      # - test -f "saved_pipeline/sdxl-turbo/text_encoder/config.json" || (echo "Error: Missing sdxl-turbo/text_encoder/config.json" && exit 1)
-      # - test -f "saved_pipeline/sdxl-turbo/text_encoder_2/config.json" || (echo "Error: Missing sdxl-turbo/text_encoder_2/config.json" && exit 1)
-      # - test -f "saved_pipeline/sdxl-turbo/scheduler/scheduler_config.json" || (echo "Error: Missing sdxl-turbo/scheduler/scheduler_config.json" && exit 1)
-      # - test -f "saved_pipeline/sdxl-turbo/tokenizer/tokenizer_config.json" || (echo "Error: Missing sdxl-turbo/tokenizer/tokenizer_config.json" && exit 1)
-      # - test -f "saved_pipeline/sdxl-turbo/tokenizer_2/tokenizer_config.json" || (echo "Error: Missing sdxl-turbo/tokenizer_2/tokenizer_config.json" && exit 1)
-      # - echo "All expected cached files verified successfully."
-      - echo "!!! SKIPPING CACHING AND VERIFICATION FOR YAML DEBUG !!!"
-      # --- End Commented Out Section ---
-      - echo "Logging in to Docker Hub..."
-      # Use the credentials fetched from Secrets Manager
-      # Ensure DOCKERHUB_USERNAME and DOCKERHUB_PASSWORD vars are correctly populated by env.secrets-manager
+      - echo "--- Pre-Build Phase Minimal ---"
+      # Minimal command to test phase transition
       - echo $DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USERNAME --password-stdin
   build: # Level 1 dictionary key under phases
     commands: # Level 2 list key under build
-      - echo "--- Build Phase ---" # Level 3 list item
-      # IMAGE_REPO_NAME and IMAGE_TAG come from CodeBuild project environment variables
-      - echo "Building Docker image: $IMAGE_REPO_NAME:$IMAGE_TAG"
-      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG -f Dockerfile.serverless .
+      - echo "--- Build Phase Minimal ---"
+      # Minimal command
+      - echo "Build phase placeholder"
   post_build: # Level 1 dictionary key under phases
     commands: # Level 2 list key under post_build
-      - echo "--- Post-Build Phase ---" # Level 3 list item
-      # IMAGE_REPO_NAME and IMAGE_TAG come from CodeBuild project environment variables
-      - echo "Pushing Docker image to Docker Hub: $IMAGE_REPO_NAME:$IMAGE_TAG"
-      - docker push $IMAGE_REPO_NAME:$IMAGE_TAG
-      - echo "Build and push completed successfully."
+      - echo "--- Post-Build Phase Minimal ---"
+      # Minimal command
+      - echo "Post-build phase placeholder"
 
 # artifacts: # Top level key (Ensure this line starts at column 0 or same level as 'phases' and 'env')
 #   files:   # Level 1 dictionary key under artifacts
