@@ -8,14 +8,13 @@ env:
     DOCKERHUB_PASSWORD: DockerHubCredentialsForGenDJ:DOCKERHUB_PASSWORD # SecretName:JSONKey
   # IMAGE_REPO_NAME and IMAGE_TAG are expected to be set as environment
   # variables directly on the CodeBuild project by the setup_codebuild.py script.
-  # No need for default variables here.
 
-phases:
-  install:
+phases: # Top level key
+  install: # Level 1 dictionary key under phases
     # runtime-versions:
     #   python: 3.10 # Uncomment if using a CodeBuild image where specific runtime needed
-    commands:
-      - echo "--- Install Phase ---"
+    commands: # Level 2 list key under install
+      - echo "--- Install Phase ---" # Level 3 list item
       - echo "Checking system info..."
       - nvidia-smi || echo "nvidia-smi not found or failed (Might be okay)"
       - python --version || python3 --version || echo "Python not found"
@@ -24,9 +23,9 @@ phases:
       # Ensure pip uses cache for potentially faster builds
       # Use pip3 if python/pip map to python2 on the build image
       - pip install --cache-dir .pip-cache -r requirements.txt || pip3 install --cache-dir .pip-cache -r requirements.txt
-  pre_build:
-    commands:
-      - echo "--- Pre-Build Phase ---"
+  pre_build: # Level 1 dictionary key under phases
+    commands: # Level 2 list key under pre_build
+      - echo "--- Pre-Build Phase ---" # Level 3 list item
       - echo "Running model caching script (cache-models.py)..."
       # Run the caching script; fail the build if it exits non-zero
       # Use python3 if needed
@@ -55,9 +54,7 @@ phases:
             echo "Error: Missing required cached file: $f"
             MISSING=1
           else
-            # Optional: echo "Verified: $f" # Can make logs very long
-            # Check file size maybe? ls -lh "$f"
-            : # No-op, just confirms loop ran for found file
+            : # File found, do nothing verbose
           fi
         done
         if [ "$MISSING" -ne 0 ]; then
@@ -70,20 +67,20 @@ phases:
       # Use the credentials fetched from Secrets Manager
       # Ensure DOCKERHUB_USERNAME and DOCKERHUB_PASSWORD vars are correctly populated by env.secrets-manager
       - echo $DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USERNAME --password-stdin
-  build:
-    commands:
-      - echo "--- Build Phase ---"
+  build: # Level 1 dictionary key under phases
+    commands: # Level 2 list key under build
+      - echo "--- Build Phase ---" # Level 3 list item
       # IMAGE_REPO_NAME and IMAGE_TAG come from CodeBuild project environment variables
       - echo "Building Docker image: $IMAGE_REPO_NAME:$IMAGE_TAG"
       - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG -f Dockerfile.serverless .
-  post_build:
-    commands:
-      - echo "--- Post-Build Phase ---"
+  post_build: # Level 1 dictionary key under phases
+    commands: # Level 2 list key under post_build
+      - echo "--- Post-Build Phase ---" # Level 3 list item
       # IMAGE_REPO_NAME and IMAGE_TAG come from CodeBuild project environment variables
       - echo "Pushing Docker image to Docker Hub: $IMAGE_REPO_NAME:$IMAGE_TAG"
       - docker push $IMAGE_REPO_NAME:$IMAGE_TAG
       - echo "Build and push completed successfully."
 
-# artifacts:
-#   files:
-#     - '**/*'
+# artifacts: # Top level key (Ensure this line starts at column 0 or same level as 'phases' and 'env')
+#   files:   # Level 1 dictionary key under artifacts
+#     - '**/*' # Level 2 list item
