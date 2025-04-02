@@ -14,15 +14,7 @@ phases: # Top level key
     # runtime-versions:
     #   python: 3.10 # Uncomment if using a CodeBuild image where specific runtime needed
     commands: # Level 2 list key under install
-      - echo "--- Install Phase ---" # Level 3 list item
-      - echo "Checking system info..."
-      - nvidia-smi || echo "nvidia-smi not found or failed (Might be okay)"
-      - python --version || python3 --version || echo "Python not found"
-      - pip --version || pip3 --version || echo "Pip not found"
-      - echo "Installing Python dependencies from requirements.txt..."
-      # Ensure pip uses cache for potentially faster builds
-      # Use pip3 if python/pip map to python2 on the build image
-      - pip install --cache-dir .pip-cache -r requirements.txt || pip3 install --cache-dir .pip-cache -r requirements.txt
+      - echo "Minimal buildspec test"
   pre_build: # Level 1 dictionary key under phases
     commands: # Level 2 list key under pre_build
       - echo "--- Pre-Build Phase ---" # Level 3 list item
