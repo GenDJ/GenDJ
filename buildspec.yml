@@ -29,18 +29,18 @@ phases: # Top level key
       - python cache-models.py || python3 cache-models.py || (echo "Model caching script failed!" && exit 1)
       - echo "Verifying cached model files (individual checks)..."
       # --- Individual File Checks ---
-      - test -f "saved_pipeline/taesdxl/config.json" || (echo "Error: Missing taesdxl/config.json" && exit 1)
-      - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.safetensors" || (echo "Error: Missing taesdxl/diffusion_pytorch_model.safetensors" && exit 1)
-      - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.bin" || (echo "Error: Missing taesdxl/diffusion_pytorch_model.bin" && exit 1)
-      - test -f "saved_pipeline/sdxl-turbo/model_index.json" || (echo "Error: Missing sdxl-turbo/model_index.json" && exit 1)
-      - test -f "saved_pipeline/sdxl-turbo/config.json" || (echo "Error: Missing sdxl-turbo/config.json" && exit 1)
-      - test -f "saved_pipeline/sdxl-turbo/vae/config.json" || (echo "Error: Missing sdxl-turbo/vae/config.json" && exit 1)
-      - test -f "saved_pipeline/sdxl-turbo/unet/config.json" || (echo "Error: Missing sdxl-turbo/unet/config.json" && exit 1)
-      - test -f "saved_pipeline/sdxl-turbo/text_encoder/config.json" || (echo "Error: Missing sdxl-turbo/text_encoder/config.json" && exit 1)
-      - test -f "saved_pipeline/sdxl-turbo/text_encoder_2/config.json" || (echo "Error: Missing sdxl-turbo/text_encoder_2/config.json" && exit 1)
-      - test -f "saved_pipeline/sdxl-turbo/scheduler/scheduler_config.json" || (echo "Error: Missing sdxl-turbo/scheduler/scheduler_config.json" && exit 1)
-      - test -f "saved_pipeline/sdxl-turbo/tokenizer/tokenizer_config.json" || (echo "Error: Missing sdxl-turbo/tokenizer/tokenizer_config.json" && exit 1)
-      - test -f "saved_pipeline/sdxl-turbo/tokenizer_2/tokenizer_config.json" || (echo "Error: Missing sdxl-turbo/tokenizer_2/tokenizer_config.json" && exit 1)
+      - test -f "saved_pipeline/taesdxl/config.json" || (echo "Missing taesdxl/config.json" && exit 1)
+      - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.safetensors" || (echo "Missing taesdxl/diffusion_pytorch_model.safetensors" && exit 1)
+      - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.bin" || (echo "Missing taesdxl/diffusion_pytorch_model.bin" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/model_index.json" || (echo "Missing sdxl-turbo/model_index.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/config.json" || (echo "Missing sdxl-turbo/config.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/vae/config.json" || (echo "Missing sdxl-turbo/vae/config.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/unet/config.json" || (echo "Missing sdxl-turbo/unet/config.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/text_encoder/config.json" || (echo "Missing sdxl-turbo/text_encoder/config.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/text_encoder_2/config.json" || (echo "Missing sdxl-turbo/text_encoder_2/config.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/scheduler/scheduler_config.json" || (echo "Missing sdxl-turbo/scheduler/scheduler_config.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/tokenizer/tokenizer_config.json" || (echo "Missing sdxl-turbo/tokenizer/tokenizer_config.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/tokenizer_2/tokenizer_config.json" || (echo "Missing sdxl-turbo/tokenizer_2/tokenizer_config.json" && exit 1)
       - echo "All expected cached files verified successfully."
       # --- End Individual File Checks ---
       - echo "Logging in to Docker Hub..."
