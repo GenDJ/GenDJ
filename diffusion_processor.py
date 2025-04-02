@@ -46,7 +46,6 @@ class DiffusionProcessor:
 
             self.pipe.vae = AutoencoderTiny.from_pretrained(
                 vae_model,
-                subfolder="diffusion_pytorch_model.fp16.safetensors",
                 torch_dtype=torch.float16,
                 local_files_only=local_files_only,
             )
