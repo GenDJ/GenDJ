@@ -30,41 +30,22 @@ phases: # Top level key
       # Run the caching script; fail the build if it exits non-zero
       # Use python3 if needed
       - python cache-models.py || python3 cache-models.py
-      - echo "Verifying cached model files..."
-      # Step 1: Define the verification logic in a script block
-      - |
-        #!/bin/bash
-        set -e # Exit immediately if a command exits with a non-zero status.
-        EXPECTED_FILES=(
-          "saved_pipeline/taesdxl/config.json"
-          "saved_pipeline/taesdxl/diffusion_pytorch_model.safetensors"
-          "saved_pipeline/taesdxl/diffusion_pytorch_model.bin"
-          "saved_pipeline/sdxl-turbo/model_index.json"
-          "saved_pipeline/sdxl-turbo/config.json"
-          "saved_pipeline/sdxl-turbo/vae/config.json"
-          "saved_pipeline/sdxl-turbo/unet/config.json"
-          "saved_pipeline/sdxl-turbo/text_encoder/config.json"
-          "saved_pipeline/sdxl-turbo/text_encoder_2/config.json"
-          "saved_pipeline/sdxl-turbo/scheduler/scheduler_config.json"
-          "saved_pipeline/sdxl-turbo/tokenizer/tokenizer_config.json"
-          "saved_pipeline/sdxl-turbo/tokenizer_2/tokenizer_config.json"
-        )
-        MISSING=0
-        echo "Starting verification of ${#EXPECTED_FILES[@]} expected files..."
-        for f in "${EXPECTED_FILES[@]}"; do
-          if [ ! -f "$f" ]; then
-            echo "Error: Missing required cached file: $f"
-            MISSING=1
-          else
-            echo "Verified: $f" # Added back for clarity during this test
-          fi
-        done
-        if [ "$MISSING" -ne 0 ]; then
-          echo "Aborting build due to missing cached files."
-          exit 1
-        else
-           echo "All expected cached files verified successfully."
-        fi
+      - echo "Verifying cached model files (individual checks)..."
+      # --- Individual File Checks ---
+      - test -f "saved_pipeline/taesdxl/config.json" || (echo "Error: Missing taesdxl/config.json" && exit 1)
+      - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.safetensors" || (echo "Error: Missing taesdxl/diffusion_pytorch_model.safetensors" && exit 1)
+      - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.bin" || (echo "Error: Missing taesdxl/diffusion_pytorch_model.bin" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/model_index.json" || (echo "Error: Missing sdxl-turbo/model_index.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/config.json" || (echo "Error: Missing sdxl-turbo/config.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/vae/config.json" || (echo "Error: Missing sdxl-turbo/vae/config.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/unet/config.json" || (echo "Error: Missing sdxl-turbo/unet/config.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/text_encoder/config.json" || (echo "Error: Missing sdxl-turbo/text_encoder/config.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/text_encoder_2/config.json" || (echo "Error: Missing sdxl-turbo/text_encoder_2/config.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/scheduler/scheduler_config.json" || (echo "Error: Missing sdxl-turbo/scheduler/scheduler_config.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/tokenizer/tokenizer_config.json" || (echo "Error: Missing sdxl-turbo/tokenizer/tokenizer_config.json" && exit 1)
+      - test -f "saved_pipeline/sdxl-turbo/tokenizer_2/tokenizer_config.json" || (echo "Error: Missing sdxl-turbo/tokenizer_2/tokenizer_config.json" && exit 1)
+      - echo "All expected cached files verified successfully."
+      # --- End Individual File Checks ---
       # Step 2: Log in to Docker Hub (Now clearly a separate command)
       - echo "Logging in to Docker Hub..."
       # Use the credentials fetched from Secrets Manager
