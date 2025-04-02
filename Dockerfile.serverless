@@ -55,7 +55,8 @@ RUN python -m pip install runpod
 RUN mkdir -p /workspace/healthcheck
 WORKDIR /workspace/healthcheck
 
-RUN echo 'import http.server\nimport socketserver\n\nclass HealthCheckHandler(http.server.SimpleHTTPRequestHandler):\n    def do_GET(self):\n        if self.path == "/readyz":\n            self.send_response(200)\n            self.send_header("Content-type", "text/plain")\n            self.end_headers()\n            self.wfile.write(b"OK")\n        else:\n            self.send_response(404)\n            self.send_header("Content-type", "text/plain")\n            self.end_headers()\n            self.wfile.write(b"Not Found")\n\ndef run_server():\n    try:\n        with socketserver.TCPServer(("", 8080), HealthCheckHandler) as httpd:\n            print("Health check server running at port 8080")\n            httpd.serve_forever()\n    except Exception as e:\n        print(f"Health check server failed: {e}")\n        exit(1)\n\nif __name__ == "__main__":\n    run_server()' > health_check_server.py
+# COPY the health check script instead of echoing it
+COPY ./healthcheck/health_check_server.py .
 
 # COPY the start script instead of echoing it
 COPY start.sh /workspace/start.sh
