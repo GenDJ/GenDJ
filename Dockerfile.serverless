@@ -64,11 +64,17 @@ RUN chmod +x /workspace/start.sh
 
 # Copy the handler script
 COPY ./handler.py /workspace/handler.py
+COPY ./healthcheck/health_check_server.py /workspace/healthcheck/health_check_server.py
 
 WORKDIR /workspace
 
 # Expose the WebSocket port for GenDJ
 EXPOSE 8888
+# Expose health check port
+EXPOSE 8080
+# Expose Settings API port
+EXPOSE 5556
 
-# Start the serverless handler
-CMD ["/workspace/start.sh"] 
+# Start the serverless handler directly, remove old CMD
+# CMD ["/workspace/start.sh"] 
+CMD ["python", "-u", "/workspace/handler.py"] 

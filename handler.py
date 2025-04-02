@@ -6,6 +6,48 @@ import threading
 import subprocess
 import signal
 import socket
+import sys
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+# --- Health Check Server --- 
+def run_health_server():
+    class SimpleHealthCheckHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/readyz":
+                self.send_response(200)
+                self.send_header("Content-type", "text/plain")
+                self.end_headers()
+                self.wfile.write(b"OK")
+            else:
+                self.send_response(404)
+                self.send_header("Content-type", "text/plain")
+                self.end_headers()
+                self.wfile.write(b"Not Found")
+        def log_message(self, format, *args):
+            # Optional: Suppress HTTP server logs if too noisy
+            # log_debug(f"HealthCheckServer: {self.address_string()} - {format % args}")
+            pass 
+
+    httpd = None
+    try:
+        port = 8080
+        httpd = HTTPServer(("", port), SimpleHealthCheckHandler)
+        log_info(f"--- Health check server starting on port {port} ---")
+        httpd.serve_forever()
+    except OSError as e:
+        log_critical(f"--- CRITICAL: Health check server failed to bind to port {port}: {e} ---")
+        # If the health server can't start, the worker likely won't become ready.
+        # We might want to exit the main script here, depending on Runpod behavior.
+        sys.exit(1) # Exit the whole process if health server fails
+    except Exception as e:
+        log_critical(f"--- CRITICAL: Health check server failed unexpectedly: {e} ---")
+        sys.exit(1)
+    finally:
+        if httpd:
+            httpd.server_close()
+            log_info("--- Health check server stopped ---")
+# --- End Health Check Server ---
+
 
 # --- Dynamic Logging Setup ---
 _IS_RUNPOD_ENV = bool(os.environ.get('RUNPOD_POD_ID'))
@@ -38,7 +80,14 @@ def log_debug(message):
 SERVICE_PORT = 8888  # WebSocket port to expose
 TIMEOUT_SECONDS = 3600  # 1 hour timeout for the service
 
-log_info("--- handler.py: Script started ---") # Use new log function
+log_info("--- handler.py: Script started (Direct Execution) ---") # Updated message
+
+# --- Start Health Check Thread ---
+log_info("--- handler.py: Starting health check server thread ---")
+health_thread = threading.Thread(target=run_health_server, daemon=True)
+health_thread.start()
+# --- End Health Check Thread ---
+
 
 class GenDJService:
     def __init__(self):
@@ -62,6 +111,9 @@ class GenDJService:
                 cwd=gendj_dir # Set the working directory
             )
             log_info(f"--- GenDJService.start: Subprocess launched with PID: {self.process.pid if self.process else 'None'} ---") # Use new log function
+        except FileNotFoundError:
+            log_error(f"--- GenDJService.start: ERROR launching subprocess - FileNotFoundError. Is run_containerized.sh at {gendj_dir}? ---")
+            return False
         except Exception as e:
             log_error(f"--- GenDJService.start: ERROR launching subprocess: {e} ---") # Use new log function
             return False
@@ -81,6 +133,9 @@ class GenDJService:
         
     def _monitor_process(self):
         log_info("--- GenDJService._monitor_process: Starting to monitor stdout/stderr ---") # Use new log function
+        if not self.process or not self.process.stdout:
+            log_error("--- GenDJService._monitor_process: ERROR - Process or stdout not available.")
+            return
         try:
             for line in self.process.stdout:
                 log_info(f"[GenDJ Process]: {line.strip()}") # Use new log function
@@ -105,8 +160,8 @@ class GenDJService:
                     log_info(f"--- GenDJService._wait_for_service: Service is running on port {SERVICE_PORT} ---") # Use new log function
                     return True
             except socket.error as e:
-                # Ignore connection errors like refused, reset, etc.
-                # log_debug(f"--- GenDJService._wait_for_service: Socket error: {e} ---") # Optional: use log_debug if needed
+                # Optional: use log_debug if needed
+                # log_debug(f"--- GenDJService._wait_for_service: Socket error: {e} ---") 
                 pass 
             finally:
                  if sock: sock.close()
@@ -122,41 +177,71 @@ class GenDJService:
         if self.process:
             log_info("Stopping GenDJ service...") # Use new log function
             try:
-                self.process.send_signal(signal.SIGTERM)
-                self.process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                log_warning("GenDJ service did not terminate gracefully, forcing...") # Use new log function
-                self.process.kill()
+                # Try SIGTERM first
+                log_info(f"--- GenDJService.stop: Sending SIGTERM to PID {self.process.pid} ---")
+                self.process.terminate() # More standard than SIGTERM directly
+                try:
+                   self.process.wait(timeout=10)
+                   log_info(f"--- GenDJService.stop: Process {self.process.pid} terminated gracefully.")
+                except subprocess.TimeoutExpired:
+                    log_warning(f"--- GenDJService.stop: Process {self.process.pid} did not terminate after SIGTERM, sending SIGKILL... ---") # Use new log function
+                    self.process.kill()
+                    self.process.wait(timeout=5) # Wait briefly for kill
+                    log_info(f"--- GenDJService.stop: Process {self.process.pid} killed.")
+            except Exception as e:
+                log_error(f"--- GenDJService.stop: Error stopping process {self.process.pid}: {e} ---")
                 
             self.process = None
-            
+            log_info("--- GenDJService.stop: Service process stopped. ---")
+        else:
+            log_info("--- GenDJService.stop: No service process was running.")
+
 
 log_info("--- handler.py: Initializing GenDJService ---") # Use new log function
 gendj_service = GenDJService()
+# --- Global Service Management (Consideration for later) ---
+# SERVICE_STARTED = False 
+# SERVICE_LOCK = threading.Lock()
 
 def handler(event):
+    # global SERVICE_STARTED
     job_id = event.get("id", "unknown")
     log_info(f"--- handler: Function called for job {job_id} ---") # Use new log function
     log_info(f"--- handler: Event received: {event} ---") # Use new log function
     
-    # Get public IP and port mapping
-    log_info("--- handler: Getting public IP and port ---") # Use new log function
-    public_ip = os.environ.get('RUNPOD_PUBLIC_IP')
-    public_port = os.environ.get(f'RUNPOD_TCP_PORT_{SERVICE_PORT}')
-    log_info(f"--- handler: Public IP = {public_ip}, Public Port = {public_port} ---") # Use new log function
-    
-    if not public_ip or not public_port:
-        log_error("--- handler: ERROR - Missing RUNPOD_PUBLIC_IP or RUNPOD_TCP_PORT ---") # Use new log function
-        return {"error": "Missing required environment variables for exposing the service"}
-    
-    # Start the GenDJ service
-    log_info("--- handler: Calling gendj_service.start() ---") # Use new log function
-    start_success = gendj_service.start()
-    log_info(f"--- handler: gendj_service.start() returned: {start_success} ---") # Use new log function
-    if not start_success:
-        log_error("--- handler: ERROR - Failed to start GenDJ service ---") # Use new log function
-        return {"error": "Failed to start GenDJ service"}
-    
+    # --- Check/Start Service Logic ---
+    # Simplistic approach for now: Start service on first call
+    # A more robust approach would use SERVICE_STARTED and SERVICE_LOCK
+    # to ensure it only starts once and handles concurrent requests.
+    if not gendj_service.process:
+        log_info(f"--- handler (Job {job_id}): GenDJ service process not found, attempting to start... ---")
+        # Get public IP and port mapping (Needed before starting? Maybe not)
+        log_info("--- handler: Getting public IP and port ---") # Use new log function
+        public_ip = os.environ.get('RUNPOD_PUBLIC_IP')
+        public_port = os.environ.get(f'RUNPOD_TCP_PORT_{SERVICE_PORT}')
+        log_info(f"--- handler: Public IP = {public_ip}, Public Port = {public_port} ---") # Use new log function
+        
+        if not public_ip or not public_port:
+            log_error("--- handler: ERROR - Missing RUNPOD_PUBLIC_IP or RUNPOD_TCP_PORT ---") # Use new log function
+            return {"error": "Missing required environment variables for exposing the service"}
+        
+        # Start the GenDJ service
+        log_info("--- handler: Calling gendj_service.start() ---") # Use new log function
+        start_success = gendj_service.start()
+        log_info(f"--- handler: gendj_service.start() returned: {start_success} ---") # Use new log function
+        if not start_success:
+            log_error("--- handler: ERROR - Failed to start GenDJ service ---") # Use new log function
+            # Optional: Consider stopping the health check server thread if the main service fails?
+            return {"error": "Failed to start GenDJ service"}
+    else:
+         log_info(f"--- handler (Job {job_id}): GenDJ service process already exists (PID: {gendj_service.process.pid}). ---")
+         # Re-fetch IP/Port in case worker restarted or IP changed?
+         public_ip = os.environ.get('RUNPOD_PUBLIC_IP')
+         public_port = os.environ.get(f'RUNPOD_TCP_PORT_{SERVICE_PORT}')
+         if not public_ip or not public_port:
+             log_error("--- handler: ERROR - Missing RUNPOD_PUBLIC_IP or RUNPOD_TCP_PORT (on subsequent call) ---")
+             return {"error": "Missing required environment variables for exposing the service"}
+
     # Send the connection info
     connection_info = {
         "status": "running",
@@ -172,33 +257,54 @@ def handler(event):
         gendj_service.stop()
         return {"error": f"Failed to send progress update: {e}"}
     
-    # Keep the job running
-    start_time = time.time()
-    log_info("--- handler: Entering main loop to keep job alive ---") # Use new log function
+    # Keep the job running - This part might be unnecessary if Runpod keeps the worker alive
+    # as long as runpod.serverless.start() is running and the health check passes.
+    # The original example (whatever.py) returns immediately after processing.
+    # Let's try returning immediately after sending progress.
+    log_info(f"--- handler: Job {job_id} finished processing, returning progress. ---")
+    return connection_info # Return the info directly instead of looping
+
+    # --- Original Keep Alive Loop (Commented out) ---
+    # start_time = time.time()
+    # log_info("--- handler: Entering main loop to keep job alive ---") # Use new log function
+    # try:
+    #     while not gendj_service.stop_event.is_set() and (time.time() - start_time) < TIMEOUT_SECONDS:
+    #         time.sleep(5)
+    #         # Optional: Periodic heartbeat (can be noisy)
+    #         # log_debug(f"--- handler: Sending heartbeat update (Uptime: {time.time() - start_time:.0f}s) ---") # Use new log function
+    #         # runpod.serverless.progress_update({"status": "running", "uptime": time.time() - start_time})
+    # except Exception as e:
+    #     log_error(f"--- handler: ERROR in main loop: {str(e)} ---") # Use new log function
+    # finally:
+    #     # Stop the service
+    #     log_info("--- handler: Exiting main loop, calling gendj_service.stop() ---") # Use new log function
+    #     gendj_service.stop()
+    #     log_info("--- handler: Service stopped ---") # Use new log function
+    # 
+    # log_info(f"--- handler: Job {job_id} finishing ---") # Use new log function
+    # return {"status": "completed"}
+    # --- End Original Keep Alive Loop ---
+
+# --- RunPod Serverless Start --- 
+if __name__ == "__main__":
+    if not health_thread.is_alive():
+        log_critical("--- CRITICAL: Health check thread failed to stay alive before starting serverless handler. Exiting. ---")
+        sys.exit(1)
+        
+    log_info("--- handler.py: Calling runpod.serverless.start() ---") # Use new log function
     try:
-        while not gendj_service.stop_event.is_set() and (time.time() - start_time) < TIMEOUT_SECONDS:
-            time.sleep(5)
-            # Optional: Periodic heartbeat (can be noisy)
-            # log_debug(f"--- handler: Sending heartbeat update (Uptime: {time.time() - start_time:.0f}s) ---") # Use new log function
-            # runpod.serverless.progress_update({"status": "running", "uptime": time.time() - start_time})
+        runpod.serverless.start({"handler": handler})
+        # This part might not be reached if start() blocks indefinitely until killed
+        log_info("--- handler.py: runpod.serverless.start() finished (normally indicates stop/completion) ---") # Use new log function
     except Exception as e:
-        log_error(f"--- handler: ERROR in main loop: {str(e)} ---") # Use new log function
+        log_critical(f"--- handler.py: CRITICAL ERROR - Exception during runpod.serverless.start(): {e} ---") # Use new log function
+        # Consider exiting if this fails, as the handler won't run
+        # Optional: Attempt to stop the service? 
+        # gendj_service.stop() 
+        sys.exit(1)
     finally:
-        # Stop the service
-        log_info("--- handler: Exiting main loop, calling gendj_service.stop() ---") # Use new log function
-        gendj_service.stop()
-        log_info("--- handler: Service stopped ---") # Use new log function
-    
-    log_info(f"--- handler: Job {job_id} finishing ---") # Use new log function
-    return {"status": "completed"}
-
-log_info("--- handler.py: Calling runpod.serverless.start() ---") # Use new log function
-try:
-    runpod.serverless.start({"handler": handler})
-    log_info("--- handler.py: runpod.serverless.start() finished (normally indicates stop/completion) ---") # Use new log function
-except Exception as e:
-    log_critical(f"--- handler.py: CRITICAL ERROR - Exception during runpod.serverless.start(): {e} ---") # Use new log function
-    # Consider exiting if this fails, as the handler won't run
-    exit(1)
-
-log_info("--- handler.py: Script finished ---") # Use new log function 
+        # Cleanup code that runs when the script exits (e.g., SIGTERM received)
+        log_info("--- handler.py: Script is exiting, attempting to stop GenDJ service... ---")
+        gendj_service.stop() 
+        log_info("--- handler.py: Script finished ---") # Use new log function
+# --- End RunPod Serverless Start --- 
