@@ -29,6 +29,10 @@ phases: # Top level key
       - echo "Running model caching script (cache-models.py)..."
       # Use the installed Python 3.10
       - python cache-models.py || (echo "Model caching script failed!" && exit 1)
+      # --- Add ls command for debugging ---
+      - echo "Listing contents of saved_pipeline/taesdxl/ after caching:"
+      - ls -l saved_pipeline/taesdxl/
+      # --- End ls command ---
       - echo "Verifying cached model files (individual checks)..."
       # --- Individual File Checks ---
       - test -f "saved_pipeline/taesdxl/config.json" || (echo "Missing taesdxl/config.json" && exit 1)
