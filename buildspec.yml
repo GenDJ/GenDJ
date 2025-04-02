@@ -51,14 +51,14 @@ phases: # Top level key
     commands: # Level 2 list key under build
       - echo "--- Build Phase ---"
       # IMAGE_REPO_NAME and IMAGE_TAG come from CodeBuild project environment variables
-      - echo "Building Docker image: $IMAGE_REPO_NAME:$IMAGE_TAG"
+      - echo "Building Docker image $IMAGE_REPO_NAME:$IMAGE_TAG"
       - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG -f Dockerfile.serverless . || (echo "Docker build failed!" && exit 1)
 
   post_build: # Level 1 dictionary key under phases
     commands: # Level 2 list key under post_build
       - echo "--- Post-Build Phase ---"
       # IMAGE_REPO_NAME and IMAGE_TAG come from CodeBuild project environment variables
-      - echo "Pushing Docker image to Docker Hub: $IMAGE_REPO_NAME:$IMAGE_TAG"
+      - echo "Pushing Docker image to Docker Hub $IMAGE_REPO_NAME:$IMAGE_TAG"
       - docker push $IMAGE_REPO_NAME:$IMAGE_TAG || (echo "Docker push failed!" && exit 1)
       - echo "Build and push completed successfully."
 
