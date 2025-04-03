@@ -32,6 +32,18 @@ phases: # Top level key
       # --- Add ls command for debugging ---
       - echo "Listing contents of saved_pipeline/taesdxl/ after caching:"
       - ls -l saved_pipeline/taesdxl/
+      # --- Add Rename Step --- 
+      - echo "Renaming VAE model file to expected .bin format..."
+      - | 
+        if [ -f "saved_pipeline/taesdxl/diffusion_pytorch_model.fp16.safetensors" ]; then 
+          mv "saved_pipeline/taesdxl/diffusion_pytorch_model.fp16.safetensors" "saved_pipeline/taesdxl/diffusion_pytorch_model.bin" && \
+          echo "Successfully renamed VAE model file."; 
+        else 
+          echo "WARNING: Expected VAE file diffusion_pytorch_model.fp16.safetensors not found for renaming.";
+          # Decide if this should be a fatal error
+          # exit 1 
+        fi
+      # --- End Rename Step ---
       # --- Add ls command for sdxl-turbo debugging ---
       - echo "Listing contents of saved_pipeline/sdxl-turbo/ after caching:"
       - ls -l saved_pipeline/sdxl-turbo/
@@ -39,8 +51,8 @@ phases: # Top level key
       - echo "Verifying cached model files (individual checks)..."
       # --- Individual File Checks (Adjusted for sdxl-turbo structure) ---
       - test -f "saved_pipeline/taesdxl/config.json" || (echo "Missing taesdxl/config.json" && exit 1)
-      # Check for .bin file now for VAE
-      - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.bin" || (echo "Missing taesdxl/diffusion_pytorch_model.bin" && exit 1)
+      # Check for .bin file now (after potential rename)
+      - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.bin" || (echo "Missing taesdxl/diffusion_pytorch_model.bin AFTER rename attempt" && exit 1)
       # - test -f "saved_pipeline/sdxl-turbo/model_index.json" || (echo "Missing sdxl-turbo/model_index.json" && exit 1) # REMOVED - Assuming saved in subdirs
       # - test -f "saved_pipeline/sdxl-turbo/config.json" || (echo "Missing sdxl-turbo/config.json" && exit 1) # REMOVED - Assuming saved in subdirs
       # Rely on subdirectory checks:
