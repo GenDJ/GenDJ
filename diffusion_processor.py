@@ -37,28 +37,27 @@ class DiffusionProcessor:
         disable_progress_bar()
 
         if use_cached:
+            print(f"Loading cached base pipeline from: {base_model}")
             self.pipe = AutoPipelineForImage2Image.from_pretrained(
                 base_model,
                 torch_dtype=torch.float16,
                 variant="fp16",
                 local_files_only=local_files_only,
             )
-
-            self.pipe.vae = AutoencoderTiny.from_pretrained(
+            print(f"Loading cached VAE from: {vae_model}")
+            vae = AutoencoderTiny.from_pretrained(
                 vae_model,
                 torch_dtype=torch.float16,
                 local_files_only=local_files_only,
             )
+            self.pipe.vae = vae
         else:
+            print(f"Downloading base pipeline: {base_model}")
             self.pipe = AutoPipelineForImage2Image.from_pretrained(
                 base_model,
                 torch_dtype=torch.float16,
                 variant="fp16",
                 local_files_only=local_files_only,
-            )
-
-            self.pipe.vae = AutoencoderTiny.from_pretrained(
-                vae_model, torch_dtype=torch.float16, local_files_only=local_files_only
             )
 
         fix_seed(self.pipe)

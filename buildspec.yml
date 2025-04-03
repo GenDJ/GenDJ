@@ -29,44 +29,31 @@ phases: # Top level key
       - echo "Running model caching script (cache-models.py)..."
       # Use the installed Python 3.10
       - python cache-models.py || (echo "Model caching script failed!" && exit 1)
-      # --- Add ls command for debugging ---
+      # --- Debugging: List cached directories --- 
       - echo "Listing contents of saved_pipeline/taesdxl/ after caching:"
       - ls -l saved_pipeline/taesdxl/
-      # --- Add Rename Step --- 
-      - echo "Renaming VAE model file to expected .bin format..."
-      - | 
-        if [ -f "saved_pipeline/taesdxl/diffusion_pytorch_model.fp16.safetensors" ]; then 
-          mv "saved_pipeline/taesdxl/diffusion_pytorch_model.fp16.safetensors" "saved_pipeline/taesdxl/diffusion_pytorch_model.bin" && \
-          echo "Successfully renamed VAE model file."; 
-        else 
-          echo "WARNING: Expected VAE file diffusion_pytorch_model.fp16.safetensors not found for renaming.";
-          # Decide if this should be a fatal error
-          # exit 1 
-        fi
-      # --- End Rename Step ---
-      # --- Add ls command for sdxl-turbo debugging ---
       - echo "Listing contents of saved_pipeline/sdxl-turbo/ after caching:"
       - ls -l saved_pipeline/sdxl-turbo/
-      # --- End ls command ---
-      - echo "Verifying cached model files (individual checks)..."
-      # --- Individual File Checks (Adjusted for sdxl-turbo structure) ---
+      # --- End Debugging --- 
+      - echo "Verifying cached model files..."
+      # --- File Verification --- 
+      # VAE Checks
       - test -f "saved_pipeline/taesdxl/config.json" || (echo "Missing taesdxl/config.json" && exit 1)
-      # Check for .bin file now (after potential rename)
-      - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.bin" || (echo "Missing taesdxl/diffusion_pytorch_model.bin AFTER rename attempt" && exit 1)
-      # - test -f "saved_pipeline/sdxl-turbo/model_index.json" || (echo "Missing sdxl-turbo/model_index.json" && exit 1) # REMOVED - Assuming saved in subdirs
-      # - test -f "saved_pipeline/sdxl-turbo/config.json" || (echo "Missing sdxl-turbo/config.json" && exit 1) # REMOVED - Assuming saved in subdirs
-      # Rely on subdirectory checks:
-      - test -f "saved_pipeline/sdxl-turbo/vae/config.json" || (echo "Missing sdxl-turbo/vae/config.json" && exit 1)
+      - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.fp16.safetensors" || (echo "Missing taesdxl/diffusion_pytorch_model.fp16.safetensors" && exit 1)
+      # Base Pipeline Checks (assuming standard diffusers save structure)
+      - test -f "saved_pipeline/sdxl-turbo/model_index.json" || (echo "Missing sdxl-turbo/model_index.json" && exit 1)
+      - test -d "saved_pipeline/sdxl-turbo/vae" || (echo "Missing sdxl-turbo/vae directory" && exit 1)
+      - test -d "saved_pipeline/sdxl-turbo/unet" || (echo "Missing sdxl-turbo/unet directory" && exit 1)
+      - test -d "saved_pipeline/sdxl-turbo/text_encoder" || (echo "Missing sdxl-turbo/text_encoder directory" && exit 1)
+      - test -d "saved_pipeline/sdxl-turbo/text_encoder_2" || (echo "Missing sdxl-turbo/text_encoder_2 directory" && exit 1)
+      - test -d "saved_pipeline/sdxl-turbo/scheduler" || (echo "Missing sdxl-turbo/scheduler directory" && exit 1)
+      - test -d "saved_pipeline/sdxl-turbo/tokenizer" || (echo "Missing sdxl-turbo/tokenizer directory" && exit 1)
+      - test -d "saved_pipeline/sdxl-turbo/tokenizer_2" || (echo "Missing sdxl-turbo/tokenizer_2 directory" && exit 1)
+      # Example check within a subdirectory (optional but good)
       - test -f "saved_pipeline/sdxl-turbo/unet/config.json" || (echo "Missing sdxl-turbo/unet/config.json" && exit 1)
-      - test -f "saved_pipeline/sdxl-turbo/text_encoder/config.json" || (echo "Missing sdxl-turbo/text_encoder/config.json" && exit 1)
-      - test -f "saved_pipeline/sdxl-turbo/text_encoder_2/config.json" || (echo "Missing sdxl-turbo/text_encoder_2/config.json" && exit 1)
-      - test -f "saved_pipeline/sdxl-turbo/scheduler/scheduler_config.json" || (echo "Missing sdxl-turbo/scheduler/scheduler_config.json" && exit 1)
-      - test -f "saved_pipeline/sdxl-turbo/tokenizer/tokenizer_config.json" || (echo "Missing sdxl-turbo/tokenizer/tokenizer_config.json" && exit 1)
-      - test -f "saved_pipeline/sdxl-turbo/tokenizer_2/tokenizer_config.json" || (echo "Missing sdxl-turbo/tokenizer_2/tokenizer_config.json" && exit 1)
-      # Add checks for actual weight files if needed, e.g.:
-      # - test -f "saved_pipeline/sdxl-turbo/unet/diffusion_pytorch_model.fp16.safetensors" || (echo "Missing sdxl-turbo/unet/...safetensors" && exit 1)
-      - echo "Required cached sub-directory files verified successfully." # Adjusted message
-      # --- End Individual File Checks ---
+      - test -f "saved_pipeline/sdxl-turbo/unet/diffusion_pytorch_model.fp16.safetensors" || (echo "Missing sdxl-turbo/unet/diffusion_pytorch_model.fp16.safetensors" && exit 1)
+      - echo "Required cached model files verified successfully."
+      # --- End File Verification --- 
       - echo "Logging in to Docker Hub..."
       # Ensure DOCKERHUB_USERNAME and DOCKERHUB_PASSWORD vars are correctly populated by env.secrets-manager
       - echo $DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USERNAME --password-stdin || (echo "Docker login failed!" && exit 1)
