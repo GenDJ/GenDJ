@@ -58,13 +58,8 @@ WORKDIR /workspace/healthcheck
 # COPY the health check script instead of echoing it
 COPY ./healthcheck/health_check_server.py .
 
-# COPY the start script instead of echoing it
-COPY start.sh /workspace/start.sh
-RUN chmod +x /workspace/start.sh
-
 # Copy the handler script
 COPY ./handler.py /workspace/handler.py
-COPY ./healthcheck/health_check_server.py /workspace/healthcheck/health_check_server.py
 
 WORKDIR /workspace
 

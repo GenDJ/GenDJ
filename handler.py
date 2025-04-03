@@ -231,7 +231,9 @@ def handler(event):
         log_info("--- handler: Getting public IP and port ---") # Use new log function
         public_ip = os.environ.get('RUNPOD_PUBLIC_IP')
         public_port = os.environ.get(f'RUNPOD_TCP_PORT_{SERVICE_PORT}')
-        log_info(f"--- handler: Public IP = {public_ip}, Public Port = {public_port} ---") # Use new log function
+        # Add explicit logging BEFORE the check
+        log_info(f"--- handler: Fetched Public IP = '{public_ip}' (Type: {type(public_ip)}) ---")
+        log_info(f"--- handler: Fetched Public Port {SERVICE_PORT} = '{public_port}' (Type: {type(public_port)}) ---")
         
         if not public_ip or not public_port:
             log_error("--- handler: ERROR - Missing RUNPOD_PUBLIC_IP or RUNPOD_TCP_PORT ---") # Use new log function
