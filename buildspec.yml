@@ -29,17 +29,23 @@ phases: # Top level key
       - echo "Running model caching script (cache-models.py)..."
       # Use the installed Python 3.10
       - python cache-models.py || (echo "Model caching script failed!" && exit 1)
+      # --- Download VAE manually using wget --- 
+      - echo "Manually downloading VAE files for taesdxl..."
+      - mkdir -p saved_pipeline/taesdxl # Ensure directory exists
+      - wget -O saved_pipeline/taesdxl/config.json https://huggingface.co/madebyollin/taesdxl/resolve/main/config.json || (echo "Failed to download VAE config.json" && exit 1)
+      - wget -O saved_pipeline/taesdxl/diffusion_pytorch_model.bin https://huggingface.co/madebyollin/taesdxl/resolve/main/diffusion_pytorch_model.bin || (echo "Failed to download VAE diffusion_pytorch_model.bin" && exit 1)
+      # --- End VAE Download --- 
       # --- Debugging: List cached directories --- 
-      - echo "Listing contents of saved_pipeline/taesdxl/ after caching:"
+      - echo "Listing contents of saved_pipeline/taesdxl/ after caching/downloading:"
       - ls -l saved_pipeline/taesdxl/
       - echo "Listing contents of saved_pipeline/sdxl-turbo/ after caching:"
       - ls -l saved_pipeline/sdxl-turbo/
       # --- End Debugging --- 
       - echo "Verifying cached model files..."
       # --- File Verification --- 
-      # VAE Checks
+      # VAE Checks (now downloaded via wget)
       - test -f "saved_pipeline/taesdxl/config.json" || (echo "Missing taesdxl/config.json" && exit 1)
-      - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.fp16.safetensors" || (echo "Missing taesdxl/diffusion_pytorch_model.fp16.safetensors" && exit 1)
+      - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.bin" || (echo "Missing taesdxl/diffusion_pytorch_model.bin" && exit 1)
       # Base Pipeline Checks (assuming standard diffusers save structure)
       - test -f "saved_pipeline/sdxl-turbo/model_index.json" || (echo "Missing sdxl-turbo/model_index.json" && exit 1)
       - test -d "saved_pipeline/sdxl-turbo/vae" || (echo "Missing sdxl-turbo/vae directory" && exit 1)

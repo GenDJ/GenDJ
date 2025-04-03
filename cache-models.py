@@ -94,12 +94,13 @@ def cache_models():
     # This ensures the specific VAE files are in the VAE directory
     if vae is not None:
         try:
+            print(f"Attempting to save VAE to {SAVE_DIR_VAE} in .bin format...")
             vae.save_pretrained(
                 SAVE_DIR_VAE,
-                safe_serialization=True, # Revert to True (recommended)
-                variant="fp16", # Still specify fp16 variant if applicable
+                safe_serialization=False, # Force .bin
+                # variant="fp16", # REMOVE variant argument
             )
-            print(f"VAE model saved to {SAVE_DIR_VAE} (using .safetensors format)") # Update log message
+            print(f"VAE model saved to {SAVE_DIR_VAE} (attempted .bin format)")
         except Exception as e:
             print(f"\n!!! ERROR saving VAE model to {SAVE_DIR_VAE}: {e}")
             traceback.print_exc()
