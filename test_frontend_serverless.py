@@ -35,8 +35,11 @@ class FrontendTestHandler(SimpleHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
-                # Return podId (workerId) for frontend URL construction
-                response = json.dumps({'podId': WORKER_ID}).encode('utf-8')
+                # Construct the full Runpod Proxy WebSocket URL
+                # Assumes the internal service runs on 8766 as per frontend code
+                websocket_url = f"wss://{WORKER_ID}-8766.proxy.runpod.net"
+                print(f"--- Providing config: {{'service_url': websocket_url}} ---")
+                response = json.dumps({'service_url': websocket_url}).encode('utf-8')
                 self.wfile.write(response)
             else:
                 self.send_error(503, "Worker ID not available yet")
