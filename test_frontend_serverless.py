@@ -74,7 +74,8 @@ def start_runpod_job(config):
         "Authorization": f"Bearer {config['RUNPOD_API_KEY']}",
         "Content-Type": "application/json"
     }
-    payload = {"input": {}} # No specific input needed for GenDJ handler
+    # Send a minimal non-empty input object to potentially satisfy Runpod validation
+    payload = {"input": {"message": "Starting GenDJ Job via Test Runner"}} 
     
     print("Starting RunPod serverless job...")
     try:
