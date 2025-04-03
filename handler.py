@@ -148,16 +148,28 @@ class GenDJService:
              log_info("--- GenDJService._monitor_process: Monitor thread finished, process might still be running? ---") # Use new log function
             
     def _wait_for_service(self):
-        log_info(f"--- GenDJService._wait_for_service: Checking for service on 127.0.0.1:{SERVICE_PORT} ---") # Use new log function
+        # IMPORTANT: Check the *actual* internal port the service runs on.
+        internal_service_port = 8765 
+        log_info(f"--- GenDJService._wait_for_service: Checking for internal service on 127.0.0.1:{internal_service_port} ---") # Use new log function
         start_time = time.time()
-        while time.time() - start_time < 60:  # Wait up to 60 seconds
+        wait_timeout = 60 # seconds
+        log_interval = 10 # seconds
+        last_log_time = start_time
+        
+        while time.time() - start_time < wait_timeout:
+            # Log progress periodically
+            current_time = time.time()
+            if current_time - last_log_time >= log_interval:
+                 log_info(f"--- GenDJService._wait_for_service: Still waiting for internal port {internal_service_port}... ({int(current_time - start_time)}s elapsed) ---")
+                 last_log_time = current_time
+
             sock = None
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.settimeout(1) # Don't wait too long for connect
-                result = sock.connect_ex(('127.0.0.1', SERVICE_PORT))
+                result = sock.connect_ex(('127.0.0.1', internal_service_port)) # Check internal port
                 if result == 0:
-                    log_info(f"--- GenDJService._wait_for_service: Service is running on port {SERVICE_PORT} ---") # Use new log function
+                    log_info(f"--- GenDJService._wait_for_service: Service is running on internal port {internal_service_port} ---") # Use new log function
                     return True
             except socket.error as e:
                 # Optional: use log_debug if needed
@@ -168,7 +180,7 @@ class GenDJService:
                  
             time.sleep(1)
             
-        log_error(f"--- GenDJService._wait_for_service: Timed out waiting for service on port {SERVICE_PORT} ---") # Use new log function
+        log_error(f"--- GenDJService._wait_for_service: Timed out waiting for internal service on port {internal_service_port} after {wait_timeout} seconds ---") # Use new log function
         return False
         
     def stop(self):

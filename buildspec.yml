@@ -39,7 +39,8 @@ phases: # Top level key
       - echo "Verifying cached model files (individual checks)..."
       # --- Individual File Checks (Adjusted for sdxl-turbo structure) ---
       - test -f "saved_pipeline/taesdxl/config.json" || (echo "Missing taesdxl/config.json" && exit 1)
-      - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.fp16.safetensors" || (echo "Missing taesdxl/diffusion_pytorch_model.fp16.safetensors" && exit 1)
+      # Check for .bin file now for VAE
+      - test -f "saved_pipeline/taesdxl/diffusion_pytorch_model.bin" || (echo "Missing taesdxl/diffusion_pytorch_model.bin" && exit 1)
       # - test -f "saved_pipeline/sdxl-turbo/model_index.json" || (echo "Missing sdxl-turbo/model_index.json" && exit 1) # REMOVED - Assuming saved in subdirs
       # - test -f "saved_pipeline/sdxl-turbo/config.json" || (echo "Missing sdxl-turbo/config.json" && exit 1) # REMOVED - Assuming saved in subdirs
       # Rely on subdirectory checks:

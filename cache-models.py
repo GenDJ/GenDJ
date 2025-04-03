@@ -96,10 +96,10 @@ def cache_models():
         try:
             vae.save_pretrained(
                 SAVE_DIR_VAE,
-                safe_serialization=True, # Recommended
-                variant="fp16", # Save in FP16 variant
+                safe_serialization=False, # Try forcing .bin format
+                variant="fp16", # Still specify fp16 variant if applicable
             )
-            print(f"VAE model saved to {SAVE_DIR_VAE}")
+            print(f"VAE model saved to {SAVE_DIR_VAE} (attempting .bin format)")
         except Exception as e:
             print(f"\n!!! ERROR saving VAE model to {SAVE_DIR_VAE}: {e}")
             traceback.print_exc()
