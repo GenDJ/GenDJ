@@ -272,33 +272,28 @@ def handler(event):
         gendj_service.stop()
         return {"error": f"Failed to send progress update: {e}"}
     
-    # Keep the job running - This part might be unnecessary if Runpod keeps the worker alive
-    # as long as runpod.serverless.start() is running and the health check passes.
-    # The original example (whatever.py) returns immediately after processing.
-    # Let's try returning immediately after sending progress.
-    log_info(f"--- handler: Job {job_id} finished processing, returning progress. ---")
-    return connection_info # Return the info directly instead of looping
+    # --- Restore Keep Alive Loop ---
+    # Keep the job running as long as the worker is alive & health check passes.
+    # The main GenDJ service runs in the background subprocess.
+    log_info(f"--- handler: Job {job_id} is running, keeping worker alive... ---")
+    # Use the stop event associated with the service to allow graceful shutdown if needed.
+    # Also check the health thread, although if it dies the worker might get killed anyway.
+    while not gendj_service.stop_event.is_set() and health_thread.is_alive():
+        # Optional: Add a timeout here if you want the job to self-terminate
+        # if time.time() - start_time > TIMEOUT_SECONDS: break 
+        time.sleep(5) # Check every 5 seconds
 
-    # --- Original Keep Alive Loop (Commented out) ---
-    # start_time = time.time()
-    # log_info("--- handler: Entering main loop to keep job alive ---") # Use new log function
-    # try:
-    #     while not gendj_service.stop_event.is_set() and (time.time() - start_time) < TIMEOUT_SECONDS:
-    #         time.sleep(5)
-    #         # Optional: Periodic heartbeat (can be noisy)
-    #         # log_debug(f"--- handler: Sending heartbeat update (Uptime: {time.time() - start_time:.0f}s) ---") # Use new log function
-    #         # runpod.serverless.progress_update({"status": "running", "uptime": time.time() - start_time})
-    # except Exception as e:
-    #     log_error(f"--- handler: ERROR in main loop: {str(e)} ---") # Use new log function
-    # finally:
-    #     # Stop the service
-    #     log_info("--- handler: Exiting main loop, calling gendj_service.stop() ---") # Use new log function
-    #     gendj_service.stop()
-    #     log_info("--- handler: Service stopped ---") # Use new log function
-    # 
-    # log_info(f"--- handler: Job {job_id} finishing ---") # Use new log function
-    # return {"status": "completed"}
-    # --- End Original Keep Alive Loop ---
+    log_info(f"--- handler: Keep alive loop exited for Job {job_id}. ---")
+    # The actual return value when the loop finishes might not matter much,
+    # as the worker is likely being terminated by Runpod at this point.
+    # The 'finally' block in __main__ will handle cleanup.
+    return {"status": "Worker loop finished or stopped"}
+    # --- End Restore Keep Alive Loop ---
+
+    # --- Original Immediate Return (Commented out) ---
+    # log_info(f"--- handler: Job {job_id} finished processing, returning progress. ---")
+    # return connection_info # Return the info directly instead of looping
+    # --- End Original Immediate Return ---
 
 # --- RunPod Serverless Start --- 
 if __name__ == "__main__":
