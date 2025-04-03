@@ -77,8 +77,10 @@ def log_debug(message):
 # --- End Dynamic Logging Setup ---
 
 # Constants
-SERVICE_PORT = 8888  # WebSocket port to expose
-TIMEOUT_SECONDS = 3600  # 1 hour timeout for the service
+SERVICE_PORT = 8766  # WebSocket port - MATCH FRONTEND EXPECTATION
+HEALTH_CHECK_PORT = 8080 # Internal health check
+SETTINGS_API_PORT = 5556 # Internal settings API
+# TIMEOUT_SECONDS = 3600 removed, use worker timeout
 
 log_info("--- handler.py: Script started (Direct Execution) ---") # Updated message
 
@@ -148,8 +150,8 @@ class GenDJService:
              log_info("--- GenDJService._monitor_process: Monitor thread finished, process might still be running? ---") # Use new log function
             
     def _wait_for_service(self):
-        # IMPORTANT: Check the *actual* internal port the service runs on.
-        internal_service_port = 8765 
+        # Check the actual internal port the service runs on (should now be SERVICE_PORT)
+        internal_service_port = SERVICE_PORT 
         log_info(f"--- GenDJService._wait_for_service: Checking for internal service on 127.0.0.1:{internal_service_port} ---") # Use new log function
         start_time = time.time()
         wait_timeout = 60 # seconds
@@ -231,10 +233,12 @@ def handler(event):
         # --- Get Environment Variables --- 
         public_ip = None
         public_port = None
+        port_env_var = None # Initialize
         try:
             log_info("--- handler: Attempting to get environment variables... ---")
             public_ip = os.environ.get('RUNPOD_PUBLIC_IP')
             # Use direct string concatenation for port key just to be ultra-safe
+            # Fetch the public port mapped to the *actual* service port (now 8766)
             port_env_var = 'RUNPOD_TCP_PORT_' + str(SERVICE_PORT) 
             public_port = os.environ.get(port_env_var)
             
