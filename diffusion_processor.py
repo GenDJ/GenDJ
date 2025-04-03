@@ -45,28 +45,12 @@ class DiffusionProcessor:
                 local_files_only=local_files_only,
             )
             print(f"Loading cached VAE from: {vae_model}")
-            # Explicitly load the correct VAE from its dedicated directory
-            # Construct the specific safetensors file path
-            vae_file_path = os.path.join(vae_model, "diffusion_pytorch_model.fp16.safetensors")
-            print(f"Attempting to load VAE directly from file: {vae_file_path}")
-            if not os.path.exists(vae_file_path):
-                # Fallback or error if specific file isn't found - indicates build issue
-                print(f"ERROR: VAE file not found at {vae_file_path}. Build process might have failed.")
-                # Optionally try loading from directory as fallback, or raise error
-                # For now, let's try directory load as a safety net, though it might fail again
-                vae = AutoencoderTiny.from_pretrained(
-                    vae_model, torch_dtype=torch.float16, local_files_only=local_files_only
-                )
-            else:
-                 # Load directly from the specific file path
-                 vae = AutoencoderTiny.from_pretrained(
-                     vae_model, # Pass directory for config etc.
-                     torch_dtype=torch.float16,
-                     local_files_only=local_files_only,
-                     # Explicitly point to the weight file
-                     weight_name="diffusion_pytorch_model.fp16.safetensors" 
-                 )
-
+            # Revert to simpler directory load, which works now that buildspec creates the .safetensors file
+            vae = AutoencoderTiny.from_pretrained(
+                vae_model, # Path to the specific VAE files directory
+                torch_dtype=torch.float16,
+                local_files_only=local_files_only,
+            )
             # Overwrite the VAE in the loaded pipeline
             self.pipe.vae = vae
         else:
