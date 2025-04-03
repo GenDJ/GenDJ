@@ -261,7 +261,7 @@ def handler(event):
     }
     log_info(f"--- handler: Sending progress update with connection info: {connection_info} ---") # Use new log function
     try:
-        runpod.serverless.progress_update(connection_info)
+        runpod.serverless.progress_update(progress=connection_info)
         log_info("--- handler: Progress update sent successfully ---") # Use new log function
     except Exception as e:
         log_error(f"--- handler: ERROR sending progress update: {e} ---") # Use new log function
