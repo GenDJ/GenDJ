@@ -227,20 +227,38 @@ def handler(event):
     # to ensure it only starts once and handles concurrent requests.
     if not gendj_service.process:
         log_info(f"--- handler (Job {job_id}): GenDJ service process not found, attempting to start... ---")
-        # Get public IP and port mapping (Needed before starting? Maybe not)
-        log_info("--- handler: Getting public IP and port ---") # Use new log function
-        public_ip = os.environ.get('RUNPOD_PUBLIC_IP')
-        public_port = os.environ.get(f'RUNPOD_TCP_PORT_{SERVICE_PORT}')
-        # Add explicit logging BEFORE the check
-        log_info(f"--- handler: Fetched Public IP = '{public_ip}' (Type: {type(public_ip)}) ---")
-        log_info(f"--- handler: Fetched Public Port {SERVICE_PORT} = '{public_port}' (Type: {type(public_port)}) ---")
         
-        if not public_ip or not public_port:
-            log_error("--- handler: ERROR - Missing RUNPOD_PUBLIC_IP or RUNPOD_TCP_PORT ---") # Use new log function
-            return {"error": "Missing required environment variables for exposing the service"}
-        
+        # --- Get Environment Variables --- 
+        public_ip = None
+        public_port = None
+        try:
+            log_info("--- handler: Attempting to get environment variables... ---")
+            public_ip = os.environ.get('RUNPOD_PUBLIC_IP')
+            # Use direct string concatenation for port key just to be ultra-safe
+            port_env_var = 'RUNPOD_TCP_PORT_' + str(SERVICE_PORT) 
+            public_port = os.environ.get(port_env_var)
+            
+            # Log fetched values immediately
+            log_info(f"--- handler: Fetched Public IP = '{public_ip}' (Type: {type(public_ip)}) ---")
+            log_info(f"--- handler: Fetched Public Port {SERVICE_PORT} = '{public_port}' (Type: {type(public_port)}) ---")
+
+            if not public_ip or not public_port:
+                log_error("--- handler: ERROR - Missing RUNPOD_PUBLIC_IP or specific RUNPOD_TCP_PORT ---")
+                # Still return error, but after logging attempt
+                return {"error": "Missing required environment variables for exposing the service"}
+            
+            log_info("--- handler: Environment variables obtained successfully. ---")
+
+        except Exception as e:
+            # Catch ANY exception during env var access/check
+            log_critical(f"--- handler: CRITICAL ERROR accessing environment variables: {e} ---")
+            log_critical(f"--- handler: Env Var Details: IP='{public_ip}', PortVar='{port_env_var}', PortVal='{public_port}' ---")
+            # traceback.print_exc() # Consider adding if needed, might be noisy
+            return {"error": f"Critical error accessing environment variables: {e}"} 
+        # --- End Get Environment Variables ---
+
         # Start the GenDJ service
-        log_info("--- handler: Calling gendj_service.start() ---") # Use new log function
+        log_info("--- handler: Calling gendj_service.start() ---")
         start_success = gendj_service.start()
         log_info(f"--- handler: gendj_service.start() returned: {start_success} ---") # Use new log function
         if not start_success:
