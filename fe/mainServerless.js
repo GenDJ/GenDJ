@@ -17,10 +17,37 @@ const stateRofl = {
   isStreaming: false,
   isRendering: false,
   isRenderSmooth: false,
+  podId: null, // Add podId to state
+  websocketUrl: null, // Add websocketUrl to state
+  settingsApiUrlBase: null, // Add settingsApiUrlBase to state
 };
 
 // Global WebSocket variable
 let ws;
+
+// --- URL Helper Functions (copied from example) ---
+const IS_WARP_LOCAL = false; // Assume false for serverless deployment test
+
+const buildWebsocketUrlFromPodId = (podId) => {
+  if (IS_WARP_LOCAL) {
+    return `ws://localhost:8765`;
+  } else {
+    // Use port 8766 as configured
+    return `wss://${podId}-8766.proxy.runpod.net`;
+  }
+};
+
+const buildSettingsApiUrlFromPodId = (podId, path) => {
+   if (IS_WARP_LOCAL) {
+    // Assuming settings API runs on 5556 locally if needed
+    return `http://localhost:5556${path}`;
+  } else {
+    // Use port 5556 as configured
+    return `https://${podId}-5556.proxy.runpod.net${path}`;
+  }
+};
+
+// --- End URL Helper Functions ---
 
 const renderFlash = () => {
   const now = Date.now();
@@ -188,59 +215,39 @@ document.addEventListener("DOMContentLoaded", async () => {
   frameDrop.addEventListener("change", function () { dropEvery = frameDrop.value; console.log("dropEvery set to:", dropEvery); });
 
 
-  // --- Permission Request and Device ID Capture ---
-  console.log("Requesting initial webcam permissions...");
+  // --- Fetch Config and Set URLs ---
   try {
-    // Get stream to trigger permission prompt
-    const permissionStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    console.log("Initial permission granted or already present.");
+      console.log("Fetching config from local server...");
+      const response = await fetch('/config');
+      if (!response.ok) {
+          throw new Error(`HTTP error fetching config! Status: ${response.status}`);
+      }
+      const config = await response.json();
+      const fetchedPodId = config.podId;
 
-    // --- Try to get device ID DIRECTLY from the permission stream's track ---
-    const videoTracks = permissionStream.getVideoTracks();
-    if (videoTracks.length > 0) {
-        const firstTrack = videoTracks[0];
-        const settings = firstTrack.getSettings(); // Get settings from the track
-        stateRofl.selectedDeviceId = settings.deviceId; 
-        console.log(`Captured deviceId directly from initial stream track settings: '${stateRofl.selectedDeviceId}'`);
-        
-        // Optional: Now populate the dropdown for labels, selecting the captured ID
-        await populateAndSelectDevice(); // Still useful for showing labels and allowing switching
-        // Ensure the dropdown reflects the captured ID if populateAndSelectDevice found it
-        if (stateRofl.selectedDeviceId) {
-             deviceList.value = stateRofl.selectedDeviceId;
-        } else {
-            console.warn("Could not re-select the captured device ID in the dropdown, might be empty again in enumerateDevices.");
-            // Fallback: If populateAndSelectDevice failed after all, try the track ID again
-            if (!stateRofl.selectedDeviceId && settings.deviceId) {
-                 stateRofl.selectedDeviceId = settings.deviceId;
-                 console.log("Fallback: Using deviceId from initial track settings again:", stateRofl.selectedDeviceId);
-            }
-        }
+      if (!fetchedPodId) {
+          throw new Error("Received empty podId from config.");
+      }
 
-    } else {
-        console.error("Permission granted, but no video tracks found on the initial stream.");
-        alert("Could not find video track after getting permission.");
-    }
+      stateRofl.podId = fetchedPodId;
+      stateRofl.websocketUrl = buildWebsocketUrlFromPodId(fetchedPodId);
+      stateRofl.settingsApiUrlBase = `https://${fetchedPodId}-5556.proxy.runpod.net`; // Base URL for settings
 
-    // IMPORTANT: Stop the tracks from the permission stream AFTER getting the ID
-    permissionStream.getTracks().forEach(track => track.stop());
-
-    if (stateRofl.selectedDeviceId) {
-        console.log("Ready for user to start streaming with selected device.");
-    } else {
-         console.error("Failed to obtain a valid device ID.");
-         alert("Failed to obtain a valid camera ID even after permission was granted. Try refreshing or checking browser settings.");
-    }
+      console.log("Config fetched successfully:");
+      console.log("  podId:", stateRofl.podId);
+      console.log("  websocketUrl:", stateRofl.websocketUrl);
+      console.log("  settingsApiUrlBase:", stateRofl.settingsApiUrlBase);
+      
+      // Now safe to initialize webcam etc. that might depend on URLs
+      await requestAndPopulateWebcam();
 
   } catch (error) {
-    console.error("Error requesting initial webcam permission:", error.name, error.message);
-    if (error.name === "NotAllowedError") {
-        alert("Webcam permission was denied. Please grant permission in browser settings and refresh the page.");
-    } else {
-        alert(`Could not initialize webcam: ${error.name} - ${error.message}`);
-    }
+      console.error('Failed to fetch config or set URLs:', error);
+      alert(`Failed to get configuration from test server: ${error.message}. Cannot connect to RunPod.`);
+      // Optionally disable start button etc.
+      document.getElementById("toggleStreaming").disabled = true; 
   }
-  // --- End Permission/Population ---
+  // --- End Fetch Config ---
 });
 
 // Function Definitions
@@ -304,57 +311,45 @@ async function initializeWebSocket() {
         ws.close();
     }
     
-    try {
-        console.log("Fetching WebSocket config from local server...");
-        const response = await fetch('/config'); 
-        if (!response.ok) {
-            throw new Error(`HTTP error fetching config! Status: ${response.status}`);
-        }
-        const config = await response.json();
-        const websocketUrl = config.service_url; 
-
-        if (!websocketUrl) {
-             throw new Error("Received empty WebSocket URL from config.");
-        }
-
-        console.log('Connecting WebSocket to RunPod Serverless:', websocketUrl);
-        ws = new WebSocket(websocketUrl); 
-
-        ws.onopen = () => {
-            console.log('WebSocket connection opened to RunPod service.');
-            if(stateRofl.stream && stateRofl.isStreaming) sendFrames(); // Start sending if stream exists and flag is set
-        };
-
-        ws.onmessage = (event) => {
-            const blob = new Blob([event.data], { type: "image/jpeg" });
-            const url = URL.createObjectURL(blob);
-            const img = new Image();
-            img.onload = () => {
-              URL.revokeObjectURL(url);
-              frameQueue.push(img);
-              frameTimestamps.push(Date.now());
-              calculateFPS();
-            };
-            img.src = url;
-        };
-
-         ws.onerror = (error) => {
-             console.error('WebSocket Error:', error);
-             alert('WebSocket connection error. Check console.');
-             setStreamingStatus(false);
-         };
-
-         ws.onclose = (event) => {
-             console.log('WebSocket connection closed.', event.code, event.reason);
-             setStreamingStatus(false);
-             ws = null;
-         };
-
-    } catch (error) {
-        console.error('Failed to initialize WebSocket:', error);
-        alert(`Failed to get WebSocket URL or connect: ${error.message}`);
+    if (!stateRofl.websocketUrl) {
+        console.error("WebSocket URL not set in state. Cannot initialize.");
+        alert("Cannot connect: WebSocket URL not configured.");
         setStreamingStatus(false);
+        return; 
     }
+
+    console.log('Connecting WebSocket to RunPod Serverless:', stateRofl.websocketUrl);
+    ws = new WebSocket(stateRofl.websocketUrl); // Use URL from state
+
+    ws.onopen = () => {
+        console.log('WebSocket connection opened to RunPod service.');
+        if(stateRofl.stream && stateRofl.isStreaming) sendFrames(); // Start sending if stream exists and flag is set
+    };
+
+    ws.onmessage = (event) => {
+        const blob = new Blob([event.data], { type: "image/jpeg" });
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          frameQueue.push(img);
+          frameTimestamps.push(Date.now());
+          calculateFPS();
+        };
+        img.src = url;
+    };
+
+     ws.onerror = (error) => {
+         console.error('WebSocket Error:', error);
+         alert('WebSocket connection error. Check console.');
+         setStreamingStatus(false);
+     };
+
+     ws.onclose = (event) => {
+         console.log('WebSocket connection closed.', event.code, event.reason);
+         setStreamingStatus(false);
+         ws = null;
+     };
 }
 
 function handleToggleStreamingButton() {
@@ -651,3 +646,112 @@ function setStreamingStatus(isStreaming) {
        stateRofl.sendingFrames = false;
     }
 }
+
+// Combined function for permission request and device population
+async function requestAndPopulateWebcam() {
+    console.log("Requesting initial webcam permissions...");
+    try {
+        // Get stream to trigger permission prompt
+        const permissionStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        console.log("Initial permission granted or already present.");
+
+        const videoTracks = permissionStream.getVideoTracks();
+        if (videoTracks.length > 0) {
+            const firstTrack = videoTracks[0];
+            const settings = firstTrack.getSettings();
+            stateRofl.selectedDeviceId = settings.deviceId;
+            console.log(`Captured deviceId directly from initial stream track settings: '${stateRofl.selectedDeviceId}'`);
+        } else {
+            console.error("Permission granted, but no video tracks found on the initial stream.");
+        }
+        permissionStream.getTracks().forEach(track => track.stop());
+
+        await populateAndSelectDevice(); // Populate dropdown
+        // Ensure dropdown reflects the captured ID
+        const deviceList = document.getElementById("deviceList");
+        if (stateRofl.selectedDeviceId) {
+             deviceList.value = stateRofl.selectedDeviceId;
+        } else {
+             console.warn("Could not re-select the captured device ID in the dropdown.");
+        }
+
+        if (stateRofl.selectedDeviceId) {
+            console.log("Ready for user to start streaming with selected device.");
+        } else {
+             console.error("Failed to obtain a valid device ID after populate.");
+             alert("Failed to obtain a valid camera ID. Try refreshing or checking browser settings.");
+        }
+
+    } catch (error) {
+        console.error("Error requesting webcam permission or populating list:", error.name, error.message);
+        if (error.name === "NotAllowedError") {
+            alert("Webcam permission was denied. Please grant permission in browser settings and refresh the page.");
+        } else {
+            alert(`Could not initialize webcam: ${error.name} - ${error.message}`);
+        }
+    }
+}
+
+// Modify sendPrompt to use the dynamic settings API URL
+function sendPrompt() {
+  if (!stateRofl.settingsApiUrlBase) {
+    console.error("Settings API URL base not set.");
+    alert("Cannot send prompt: API URL not configured.");
+    return;
+  }
+  const promptText = document.getElementById("prompt").value;
+  const postText = document.getElementById("postText").value;
+  const fullPrompt = `${promptText} ${postText}`.trim();
+  const encodedPrompt = encodeURIComponent(fullPrompt);
+  
+  // Assuming primary prompt uses /prompt/ endpoint
+  const endpoint = buildSettingsApiUrlFromPodId(stateRofl.podId, `/prompt/${encodedPrompt}`);
+  console.log("Sending prompt to:", endpoint);
+
+  fetch(endpoint, {
+    method: 'POST'
+  })
+    .then(response => response.text()) // Use text() first to see raw response
+    .then(data => {
+      console.log('Prompt Response:', data);
+      try {
+        if (data) {
+          const parsedData = JSON.parse(data); // Try parsing later
+          if (parsedData?.safety === 'unsafe') {
+             // Handle unsafe prompt if needed
+             console.warn("Prompt flagged as unsafe by server.");
+             alert("Prompt may contain unsafe content.");
+          }
+        }
+      } catch (error) {
+         console.error('Error parsing prompt response:', error, "Raw data:", data);
+      }
+    })
+    .catch(error => {
+      console.error('Error sending prompt:', error);
+      alert(`Error sending prompt: ${error.message}`);
+    });
+}
+
+// Update event listeners to call the modified sendPrompt
+document.getElementById("send").addEventListener("click", sendPrompt);
+document.getElementById("prompt").addEventListener("keydown", function (event) {
+  if (event.key === "Enter" && !event.shiftKey) { // Allow shift+enter for newline
+    sendPrompt();
+    event.preventDefault();
+  }
+});
+document.getElementById("postText").addEventListener("keydown", function (event) {
+  if (event.key === "Enter") {
+    sendPrompt();
+    event.preventDefault();
+  }
+});
+// Also update library selection to call sendPrompt
+document.getElementById("promptLibrary").addEventListener("change", function(){
+    const selectedValue = this.value;
+    if (selectedValue) { // Don't send if they select the placeholder
+        document.getElementById("prompt").value = selectedValue;
+        sendPrompt();
+    }
+});

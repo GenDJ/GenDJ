@@ -30,21 +30,36 @@ class FrontendTestHandler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(fe_dir), **kwargs)
 
     def do_GET(self):
-        if self.path == '/config':
+        # Explicitly handle the root path to serve index-serverless.html
+        if self.path == '/':
+            file_path = Path(__file__).parent / 'fe' / 'index-serverless.html'
+            if file_path.is_file():
+                try:
+                    self.send_response(200)
+                    self.send_header('Content-type', 'text/html')
+                    self.end_headers()
+                    with open(file_path, 'rb') as f:
+                        self.wfile.write(f.read())
+                except Exception as e:
+                    print(f"Error serving index-serverless.html: {e}")
+                    self.send_error(500, "Error reading serverless index file")
+            else:
+                self.send_error(404, "index-serverless.html not found")
+            return # Explicitly return after handling
+        elif self.path == '/config':
             if WORKER_ID:
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
-                # Construct the full Runpod Proxy WebSocket URL
-                # Assumes the internal service runs on 8766 as per frontend code
-                websocket_url = f"wss://{WORKER_ID}-8766.proxy.runpod.net"
-                print(f"--- Providing config: {{'service_url': websocket_url}} ---")
-                response = json.dumps({'service_url': websocket_url}).encode('utf-8')
+                # Revert to providing just the podId (WORKER_ID)
+                print(f"--- Providing config: {{'podId': WORKER_ID}} ---")
+                response = json.dumps({'podId': WORKER_ID}).encode('utf-8')
                 self.wfile.write(response)
             else:
                 self.send_error(503, "Worker ID not available yet")
+            return # Explicitly return after handling
         else:
-            # Serve files from the 'fe' directory
+            # Serve other files (like mainServerless.js) using the default handler
             super().do_GET()
             
     def do_POST(self):

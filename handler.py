@@ -246,12 +246,14 @@ def handler(event):
             log_info(f"--- handler: Fetched Public IP = '{public_ip}' (Type: {type(public_ip)}) ---")
             log_info(f"--- handler: Fetched Public Port {SERVICE_PORT} = '{public_port}' (Type: {type(public_port)}) ---")
 
-            if not public_ip or not public_port:
-                log_error("--- handler: ERROR - Missing RUNPOD_PUBLIC_IP or specific RUNPOD_TCP_PORT ---")
-                # Still return error, but after logging attempt
-                return {"error": "Missing required environment variables for exposing the service"}
+            # REMOVED: Check that causes failure if TCP port env var isn't set.
+            # The frontend constructs the URL dynamically, so the handler doesn't strictly
+            # need the public TCP port variable to proceed with starting the service.
+            # if not public_ip or not public_port:
+            #     log_error("--- handler: ERROR - Missing RUNPOD_PUBLIC_IP or specific RUNPOD_TCP_PORT ---")
+            #     return {"error": "Missing required environment variables for exposing the service"}
             
-            log_info("--- handler: Environment variables obtained successfully. ---")
+            log_info("--- handler: Environment variables obtained (or not found, which is ok for startup). ---")
 
         except Exception as e:
             # Catch ANY exception during env var access/check
