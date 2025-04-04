@@ -246,12 +246,15 @@ def handler(event):
             log_info(f"--- handler: Fetched Public IP = '{public_ip}' (Type: {type(public_ip)}) ---")
             log_info(f"--- handler: Fetched Public Port {SERVICE_PORT} = '{public_port}' (Type: {type(public_port)}) ---")
 
-            if not public_ip or not public_port:
-                # Reinstate check for the TCP port variable
-                log_error("--- handler: ERROR - Missing RUNPOD_PUBLIC_IP or specific RUNPOD_TCP_PORT ---")
-                return {"error": "Missing required environment variables for exposing the service"}
+            # REMOVED: Check that causes failure if TCP port env var isn't set.
+            # The frontend constructs the URL dynamically, so the handler doesn't strictly
+            # need the public TCP port variable to proceed with starting the service.
+            # if not public_ip or not public_port:
+            #     # Reinstate check for the TCP port variable
+            #     log_error("--- handler: ERROR - Missing RUNPOD_PUBLIC_IP or specific RUNPOD_TCP_PORT ---")
+            #     return {"error": "Missing required environment variables for exposing the service"}
             
-            log_info("--- handler: Environment variables obtained successfully. ---")
+            log_info("--- handler: Environment variables obtained (or not found, which is ok for startup). ---")
 
         except Exception as e:
             # Catch ANY exception during env var access/check
@@ -269,19 +272,22 @@ def handler(event):
             log_error("--- handler: ERROR - Failed to start GenDJ service ---") # Use new log function
             # Optional: Consider stopping the health check server thread if the main service fails?
             return {"error": "Failed to start GenDJ service"}
-    else:
-         log_info(f"--- handler (Job {job_id}): GenDJ service process already exists (PID: {gendj_service.process.pid}). ---")
-         # Re-fetch IP/Port in case worker restarted or IP changed?
-         public_ip = os.environ.get('RUNPOD_PUBLIC_IP')
-         public_port = os.environ.get(f'RUNPOD_TCP_PORT_{SERVICE_PORT}')
-         if not public_ip or not public_port:
-             log_error("--- handler: ERROR - Missing RUNPOD_PUBLIC_IP or RUNPOD_TCP_PORT (on subsequent call) ---")
-             return {"error": "Missing required environment variables for exposing the service"}
+    # REMOVED else block - Handler runs indefinitely, shouldn't be called again on same worker
+    # else:
+    #      log_info(f"--- handler (Job {job_id}): GenDJ service process already exists (PID: {gendj_service.process.pid}). ---")
+    #      # Re-fetch IP/Port in case worker restarted or IP changed?
+    #      public_ip = os.environ.get('RUNPOD_PUBLIC_IP')
+    #      public_port = os.environ.get(f'RUNPOD_TCP_PORT_{SERVICE_PORT}')
+    #      if not public_ip or not public_port:
+    #          log_error("--- handler: ERROR - Missing RUNPOD_PUBLIC_IP or RUNPOD_TCP_PORT (on subsequent call) ---")
+    #          return {"error": "Missing required environment variables for exposing the service"}
 
-    # Send the connection info
+    # Send the connection info (best effort, might have None values if TCP port wasn't set)
+    service_url_val = f"ws://{public_ip}:{public_port}" if public_ip and public_port else None
     connection_info = {
         "status": "running",
-        "service_url": f"ws://{public_ip}:{public_port}"
+        # Send the constructed URL if available, otherwise indicate it's unavailable
+        "service_url": service_url_val or "ws://<IP_MISSING>:<TCP_PORT_MISSING>"
     }
     log_info(f"--- handler: Sending progress update with connection info: {connection_info} ---") # Use new log function
     try:
