@@ -33,7 +33,7 @@ const buildWebsocketUrlFromPodId = (podId) => {
     return `ws://localhost:8765`;
   } else {
     // Use port 8766 as configured
-    return `wss://${podId}-8766.proxy.runpod.net`;
+    return `wss://${podId}-8765.proxy.runpod.net`;
   }
 };
 
