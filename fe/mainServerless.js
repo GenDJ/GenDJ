@@ -316,40 +316,40 @@ async function initializeWebSocket() {
         alert("Cannot connect: WebSocket URL not configured.");
         setStreamingStatus(false);
         return; 
-    }
+        }
 
     console.log('Connecting WebSocket to RunPod Serverless:', stateRofl.websocketUrl);
     ws = new WebSocket(stateRofl.websocketUrl); // Use URL from state
 
-    ws.onopen = () => {
-        console.log('WebSocket connection opened to RunPod service.');
-        if(stateRofl.stream && stateRofl.isStreaming) sendFrames(); // Start sending if stream exists and flag is set
-    };
-
-    ws.onmessage = (event) => {
-        const blob = new Blob([event.data], { type: "image/jpeg" });
-        const url = URL.createObjectURL(blob);
-        const img = new Image();
-        img.onload = () => {
-          URL.revokeObjectURL(url);
-          frameQueue.push(img);
-          frameTimestamps.push(Date.now());
-          calculateFPS();
+        ws.onopen = () => {
+            console.log('WebSocket connection opened to RunPod service.');
+            if(stateRofl.stream && stateRofl.isStreaming) sendFrames(); // Start sending if stream exists and flag is set
         };
-        img.src = url;
-    };
 
-     ws.onerror = (error) => {
-         console.error('WebSocket Error:', error);
-         alert('WebSocket connection error. Check console.');
-         setStreamingStatus(false);
-     };
+        ws.onmessage = (event) => {
+            const blob = new Blob([event.data], { type: "image/jpeg" });
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+              URL.revokeObjectURL(url);
+              frameQueue.push(img);
+              frameTimestamps.push(Date.now());
+              calculateFPS();
+            };
+            img.src = url;
+        };
 
-     ws.onclose = (event) => {
-         console.log('WebSocket connection closed.', event.code, event.reason);
-         setStreamingStatus(false);
-         ws = null;
-     };
+         ws.onerror = (error) => {
+             console.error('WebSocket Error:', error);
+             alert('WebSocket connection error. Check console.');
+             setStreamingStatus(false);
+         };
+
+         ws.onclose = (event) => {
+             console.log('WebSocket connection closed.', event.code, event.reason);
+             setStreamingStatus(false);
+             ws = null;
+         };
 }
 
 function handleToggleStreamingButton() {
