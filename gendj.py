@@ -256,11 +256,7 @@ def main():
     args = parser.parse_args()
 
     settings = Settings()
-    # --- Override WebSocket Port to Match Frontend/Handler --- 
-    settings.websocket_port = 8766
-    log_file = f"gendj_log_ws{settings.websocket_port}.log"
-    print(f"Overriding websocket_port to {settings.websocket_port}")
-    # --- End Override ---
+    print(f"Using websocket_port from Settings: {settings.websocket_port}")
     settings_api = SettingsAPI(settings)
     settings_controller = OscSettingsController(settings)
 

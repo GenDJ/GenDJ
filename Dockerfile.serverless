@@ -63,8 +63,8 @@ COPY ./handler.py /workspace/handler.py
 
 WORKDIR /workspace
 
-# Expose the WebSocket port for GenDJ (matching frontend)
-EXPOSE 8766
+# Expose the WebSocket port for GenDJ (Reverted to 8765)
+EXPOSE 8765
 # Expose health check port
 EXPOSE 8080
 # Expose Settings API port

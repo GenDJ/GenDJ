@@ -77,7 +77,7 @@ def log_debug(message):
 # --- End Dynamic Logging Setup ---
 
 # Constants
-SERVICE_PORT = 8766  # WebSocket port - MATCH FRONTEND EXPECTATION
+SERVICE_PORT = 8765  # WebSocket port - Reverted to 8765
 HEALTH_CHECK_PORT = 8080 # Internal health check
 SETTINGS_API_PORT = 5556 # Internal settings API
 # TIMEOUT_SECONDS = 3600 removed, use worker timeout
@@ -238,7 +238,7 @@ def handler(event):
             log_info("--- handler: Attempting to get environment variables... ---")
             public_ip = os.environ.get('RUNPOD_PUBLIC_IP')
             # Use direct string concatenation for port key just to be ultra-safe
-            # Fetch the public port mapped to the *actual* service port (now 8766)
+            # Fetch the public port mapped to the *actual* service port (now 8765)
             port_env_var = 'RUNPOD_TCP_PORT_' + str(SERVICE_PORT) 
             public_port = os.environ.get(port_env_var)
             
@@ -246,14 +246,12 @@ def handler(event):
             log_info(f"--- handler: Fetched Public IP = '{public_ip}' (Type: {type(public_ip)}) ---")
             log_info(f"--- handler: Fetched Public Port {SERVICE_PORT} = '{public_port}' (Type: {type(public_port)}) ---")
 
-            # REMOVED: Check that causes failure if TCP port env var isn't set.
-            # The frontend constructs the URL dynamically, so the handler doesn't strictly
-            # need the public TCP port variable to proceed with starting the service.
-            # if not public_ip or not public_port:
-            #     log_error("--- handler: ERROR - Missing RUNPOD_PUBLIC_IP or specific RUNPOD_TCP_PORT ---")
-            #     return {"error": "Missing required environment variables for exposing the service"}
+            if not public_ip or not public_port:
+                # Reinstate check for the TCP port variable
+                log_error("--- handler: ERROR - Missing RUNPOD_PUBLIC_IP or specific RUNPOD_TCP_PORT ---")
+                return {"error": "Missing required environment variables for exposing the service"}
             
-            log_info("--- handler: Environment variables obtained (or not found, which is ok for startup). ---")
+            log_info("--- handler: Environment variables obtained successfully. ---")
 
         except Exception as e:
             # Catch ANY exception during env var access/check
